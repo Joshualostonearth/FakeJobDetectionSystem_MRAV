@@ -32,8 +32,17 @@ class JobOfferEntities(BaseModel):
 # ==========================================
 class RetrivedDocMetadata(BaseModel):
     source_type: str = Field(
-        ..., description="'registry', 'linkedin', or 'scam_report'"
+        ..., description="'legitimate_job_record', 'scam_report', or other source types"
     )
+    job_id: Optional[str] = None
+    fraudulent: Optional[int] = None
+    authority_tier: Optional[int] = None
+    title: Optional[str] = None
+    industry: Optional[str] = None
+    location: Optional[str] = None
+    has_logo: Optional[int] = None
+    telecommuting: Optional[int] = None
+    
     company_name: Optional[str] = None
     domain: Optional[str] = None
     credibility_tier: Optional[str] = Field(
@@ -50,12 +59,13 @@ class VectorDocument(BaseModel):
     doc_id: str
     content: str = Field(..., description="Raw chunk text retrieved from FAISS")
     similarity_score: float = Field(
-        ..., ge=0.0, le=1.0, description="FAISS cosine/L2 similarity score"
+        ..., ge=0.0, description="FAISS cosine/L2 similarity score"
     )
     metadata: RetrivedDocMetadata
 
 
 class RetrievedEvidenceBundle(BaseModel):
+    legitimate_job_records: List[VectorDocument] = []
     registry_records: List[VectorDocument] = []
     linkedin_data: List[VectorDocument] = []
     scam_reports: List[VectorDocument] = []

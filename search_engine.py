@@ -45,35 +45,26 @@ class EvidenceRetriever:
         all_results = []
         
         try:
-            # 1. Registry Query
-            registry_query = f"{entities.company_name} {entities.domain_or_website or ''}".strip()
-            if registry_query:
-                registry_results = self.vector_db.similarity_search_with_score(
-                    query=registry_query, 
+            # 1. Legitimate Job Record Query (Baseline)
+            legit_query = f"{entities.company_name} {entities.job_role or ''} {entities.location or ''}".strip()
+            if legit_query:
+                legit_results = self.vector_db.similarity_search_with_score(
+                    query=legit_query, 
                     k=top_k,
-                    filter={"source_type": "government_registry"}
+                    filter={"source_type": "legitimate_job_record"}
                 )
-                all_results.extend(registry_results)
+                all_results.extend(legit_results)
             
-            # 2. LinkedIn Query
-            linkedin_query = f"{entities.company_name} hiring {entities.job_role or ''}".strip()
-            if linkedin_query:
-                linkedin_results = self.vector_db.similarity_search_with_score(
-                    query=linkedin_query, 
-                    k=top_k,
-                    filter={"source_type": "linkedin_verified"}
-                )
-                all_results.extend(linkedin_results)
-            
-            # 3. Scam Database Query
-            scam_query = f"{entities.company_name} {entities.recruiter_email or ''} scam fraud fake offer".strip()
+            # 2. Scam Report Query
+            scam_query = f"{entities.company_name} {entities.job_role or ''} {entities.email_or_phone or ''} scam fraud fake offer".strip()
             if scam_query:
                 scam_results = self.vector_db.similarity_search_with_score(
                     query=scam_query, 
                     k=top_k,
-                    filter={"source_type": "scam_forum"}
+                    filter={"source_type": "scam_report"}
                 )
                 all_results.extend(scam_results)
+                
                 
         except Exception as e:
             print(f"[Error] FAISS similarity search failed: {e}")
@@ -84,21 +75,41 @@ class EvidenceRetriever:
             }
         
         # Deduplicate and format results
-        formatted_results = []
+        bundle_docs = {
+            "legitimate_job_records": [],
+            "registry_records": [],
+            "linkedin_data": [],
+            "scam_reports": []
+        }
         seen_contents = set()
+        
+        # We also need to map the output to the vector document format required by Obj 2
+        import uuid
+        
         for doc, score in all_results:
             if doc.page_content not in seen_contents:
                 seen_contents.add(doc.page_content)
-                formatted_results.append({
-                    "page_content": doc.page_content,
-                    "metadata": doc.metadata,
-                    "vector_distance": float(score)
-                })
+                vec_doc = {
+                    "doc_id": str(uuid.uuid4()),
+                    "content": doc.page_content,
+                    "similarity_score": float(score),
+                    "metadata": doc.metadata
+                }
+                
+                source_type = doc.metadata.get("source_type", "")
+                if source_type == "legitimate_job_record":
+                    bundle_docs["legitimate_job_records"].append(vec_doc)
+                elif source_type == "scam_report":
+                    bundle_docs["scam_reports"].append(vec_doc)
+                elif source_type == "linkedin_verified":
+                    bundle_docs["linkedin_data"].append(vec_doc)
+                else:
+                    bundle_docs["registry_records"].append(vec_doc)
             
         return {
             "status": "SUCCESS",
             "extracted_entities": entities.model_dump(),
-            "retrieved_evidence": formatted_results
+            "retrieved_evidence": bundle_docs
         }
 
 if __name__ == "__main__":

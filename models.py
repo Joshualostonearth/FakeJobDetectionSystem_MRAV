@@ -1,9 +1,8 @@
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 
-# Step 3: Structured Entity Extraction Schema
 class JobOfferEntities(BaseModel):
     company_name: str = Field(description="The name of the company offering the job", default="")
     job_role: str = Field(description="The job title or role", default="")
@@ -11,36 +10,33 @@ class JobOfferEntities(BaseModel):
     domain_or_website: Optional[str] = Field(description="The company's web domain or website URL", default=None)
     location: Optional[str] = Field(description="Job location", default=None)
 
-def extract_entities_from_text(text: str, openai_api_key: str) -> JobOfferEntities:
-    """
-    Uses LangChain and an LLM to parse raw text and extract structured job offer entities.
-    """
+def extract_entities_from_text(text: str) -> JobOfferEntities:
     if not text or not text.strip():
         print("[Warning] Empty text provided for extraction.")
         return JobOfferEntities()
 
     try:
-        # Initialize the LLM (Using GPT-4o-mini for fast, cheap extraction)
-        llm = ChatOpenAI(model="gpt-4o-mini", api_key=openai_api_key, temperature=0)
-        
-        # Create the structured extraction chain
+        llm = ChatOllama(model="llama3.2", temperature=0)
         structured_llm = llm.with_structured_output(JobOfferEntities)
         
-        # Define the prompt
+        # 🟢 UPGRADED STRICT PROMPT FOR LLAMA 3.2
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are an expert data extraction assistant. Your job is to extract job offer details from the provided text into a structured format. The text may be a combination of user-provided claims and OCR-extracted text from an image. If a field is not present, leave it null."),
-            ("human", "Please extract the job entities from the following text:\n\n{text}")
+            ("system", """You are a strict data extraction assistant. Parse the provided text and extract all job details into JSON format.
+
+RULES:
+1. 'company_name': Extract the exact organization or company name (e.g. 'Food52', 'Richmond College'). DO NOT leave this blank if a company name is mentioned.
+2. 'job_role': Extract the job title (e.g. 'Marketing Intern').
+3. 'recruiter_email': Extract any email address present in the text (e.g. 'recruiting-food52@gmail.com').
+4. 'domain_or_website': Extract any website domain mentioned (e.g. 'food52.com').
+5. 'location': Extract any city/state/country mentioned.
+
+Extract every single field carefully from the text below."""),
+            ("human", "{text}")
         ])
         
-        # Create the chain
         extraction_chain = prompt | structured_llm
-        
-        # Execute extraction
         result = extraction_chain.invoke({"text": text})
         return result if result else JobOfferEntities()
     except Exception as e:
         print(f"[Error] LLM Extraction failed: {e}")
         return JobOfferEntities()
-
-if __name__ == "__main__":
-    pass

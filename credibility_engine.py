@@ -74,6 +74,7 @@ def _generate_flags(
     authority_score: float,
     consensus_score: float,
     c_idx: float,
+    mrav_triple: MRAVTriple,
 ) -> list[CredibilityFlag]:
     """
     Generate structured credibility flags based on evaluation results.
@@ -125,14 +126,24 @@ def _generate_flags(
             )
         )
 
-    # Scam report presence
-    if doc.metadata.source_type in ("scam_report", "scam_report_forum"):
+    # EMSCAD Scam Pattern Trigger
+    if doc.metadata.fraudulent == 1 or doc.metadata.source_type in ("scam_report", "scam_report_forum"):
         flags.append(
             CredibilityFlag(
                 severity="CRITICAL",
-                message=f"Scam report found matching offer keywords (doc: {doc.doc_id})",
+                message=f"High-risk SCAM pattern detected from EMSCAD records (doc: {doc.doc_id})",
             )
         )
+
+    # EMSCAD Legitimate Baseline Comparison
+    if doc.metadata.fraudulent == 0 or doc.metadata.source_type == "legitimate_job_record":
+        if mrav_triple.hypothesis == "Contradicts":
+            flags.append(
+                CredibilityFlag(
+                    severity="WARNING",
+                    message=f"Offer contradicts EMSCAD legitimate baseline: {mrav_triple.explanation} (doc: {doc.doc_id})",
+                )
+            )
 
     # Low credibility tier
     if c_idx < DISCARD_THRESHOLD:
@@ -189,6 +200,7 @@ def _evaluate_single_document(
         authority_score=authority,
         consensus_score=consensus,
         c_idx=c_idx,
+        mrav_triple=mrav_triple,
     )
 
     evaluated = EvaluatedDocument(
@@ -228,7 +240,8 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
 
     # Collect all documents from all evidence categories
     all_docs: list[VectorDocument] = (
-        evidence.registry_records
+        evidence.legitimate_job_records
+        + evidence.registry_records
         + evidence.linkedin_data
         + evidence.scam_reports
     )
@@ -250,7 +263,7 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
             evaluated_docs.append(evaluated)
 
         print(
-            f"    → Authority={evaluated.authority:.2f}, "
+            f"    -> Authority={evaluated.authority:.2f}, "
             f"Freshness={evaluated.freshness:.2f}, "
             f"Consensus={evaluated.consensus:.2f}, "
             f"C_idx={evaluated.credibility_index:.3f} "
