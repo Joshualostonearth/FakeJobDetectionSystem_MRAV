@@ -1,0 +1,29 @@
+[
+    {
+        "page_content": "Official Registry Record: Apex Tech Solutions Inc. Registered Status: ACTIVE. Incorporated: 2015-04-12. Official Domain: apextech.com. Jurisdiction: California.",
+        "metadata": {
+            "source_type": "government_registry",
+            "company_name": "Apex Tech Solutions",
+            "domain": "apextech.com",
+            "authority_tier": 1
+        }
+    },
+    {
+        "page_content": "LinkedIn Corporate Profile: Apex Tech Solutions. Employee Count: 250-500. Industry: Software Development. Official Website: apextech.com. Headquarters: San Francisco, CA.",
+        "metadata": {
+            "source_type": "linkedin_verified",
+            "company_name": "Apex Tech Solutions",
+            "domain": "apextech.com",
+            "authority_tier": 2
+        }
+    },
+    {
+        "page_content": "Scam Alert: Fake job offer circulating using domain apextech-careers.org asking candidates for $500 laptop equipment fee via Zelle. Recruiter using free Gmail address.",
+        "metadata": {
+            "source_type": "scam_forum",
+            "company_name": "Apex Tech Solutions",
+            "domain": "apextech-careers.org",
+            "authority_tier": 4
+        }
+    }
+]
