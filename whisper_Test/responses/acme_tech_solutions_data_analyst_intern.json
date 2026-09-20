@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "company": "Acme Tech Solutions",
+    "job": "Data Analyst Intern",
+    "caller_type": "automated AI assistant",
+    "created_at": "2026-09-20T10:01:40.989841+00:00",
+    "completed_at": "2026-09-20T10:03:59.830511+00:00"
+  },
+  "responses": [
+    {
+      "id": 1,
+      "question": "Hello! I’m an automated AI assistant calling on behalf of a candidate who received a job offer—could you confirm this is Acme Tech Solutions?",
+      "purpose": "verify company identity and legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R4"
+      ],
+      "legit_answer_hint": "Yes, this is the correct company",
+      "answer": "Thanks for watching. Yes, this is the magnetic solutions.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:01:48.491340+00:00",
+      "answered_at": "2026-09-20T10:02:06.946440+00:00"
+    },
+    {
+      "id": 2,
+      "question": "Could you please share Acme Tech Solutions’ official website for verification?",
+      "purpose": "confirm official online presence",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Provide a valid URL (e.g., acmetechsolutions.com)",
+      "answer": "It's at meetexolutions.com",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:02:06.947058+00:00",
+      "answered_at": "2026-09-20T10:02:17.635789+00:00"
+    },
+    {
+      "id": 3,
+      "question": "Where is the main office of Acme Tech Solutions located?",
+      "purpose": "verify physical registration",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Provide an address (e.g., City, State)",
+      "answer": "It's at meetexolutions.com This is located in England, London.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:02:17.636348+00:00",
+      "answered_at": "2026-09-20T10:02:29.813064+00:00"
+    },
+    {
+      "id": 4,
+      "question": "What is the exact job title for this internship position?",
+      "purpose": "confirm role clarity",
+      "targets_reason_ids": [],
+      "legit_answer_hint": "Data Analyst Intern",
+      "answer": "smelly cyber security index.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:02:29.813603+00:00",
+      "answered_at": "2026-09-20T10:02:41.156547+00:00"
+    },
+    {
+      "id": 5,
+      "question": "Could you describe a few key responsibilities the candidate would have in this role?",
+      "purpose": "validate job scope details",
+      "targets_reason_ids": [],
+      "legit_answer_hint": "List 2-3 specific tasks (e.g., data cleaning, reporting)",
+      "answer": "smelly cyber security index. in them, mainly scanning networks by new vulnerabilities, basic volume that is getting patched with the same and other tools.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:02:41.156995+00:00",
+      "answered_at": "2026-09-20T10:02:59.393673+00:00"
+    },
+    {
+      "id": 6,
+      "question": "When is the start date for this internship offer?",
+      "purpose": "confirm timeline consistency",
+      "targets_reason_ids": [],
+      "legit_answer_hint": "October 1st, 2026",
+      "answer": "basic one of the tools waiting to catch food with the same and other tools.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:02:59.395558+00:00",
+      "answered_at": "2026-09-20T10:03:06.682573+00:00"
+    },
+    {
+      "id": 7,
+      "question": "Did the candidate complete an interview before receiving this offer?",
+      "purpose": "check if selection process was followed",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Yes, they interviewed",
+      "answer": "basic volume that is getting patched with the SIN and other tools. It is starting on January 2027 on 26th. Uh, no.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:03:06.683080+00:00",
+      "answered_at": "2026-09-20T10:03:19.026792+00:00"
+    },
+    {
+      "id": 8,
+      "question": "Was the candidate asked to pay any fees before starting this internship?",
+      "purpose": "verify no upfront payment requests",
+      "targets_reason_ids": [
+        "R3"
+      ],
+      "legit_answer_hint": "No, no fees were required",
+      "answer": "No.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:03:19.027409+00:00",
+      "answered_at": "2026-09-20T10:03:27.201395+00:00"
+    },
+    {
+      "id": 9,
+      "question": "What email address did you use to send the official offer letter?",
+      "purpose": "confirm communication channel",
+      "targets_reason_ids": [
+        "R4"
+      ],
+      "legit_answer_hint": "hr@acme-tech-careers.com",
+      "answer": "The mini man",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:03:27.201954+00:00",
+      "answered_at": "2026-09-20T10:03:43.800971+00:00"
+    },
+    {
+      "id": 10,
+      "question": "Could you provide the best contact method for next steps or official documents?",
+      "purpose": "guide to verified channels",
+      "targets_reason_ids": [
+        "R4"
+      ],
+      "legit_answer_hint": "Official email or phone number",
+      "answer": "It's all in the update.",
+      "status": "answered",
+      "asked_at": "2026-09-20T10:03:43.801488+00:00",
+      "answered_at": "2026-09-20T10:03:54.092401+00:00"
+    }
+  ]
+}
