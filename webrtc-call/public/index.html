@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Voice Call MVP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Voice Call MVP</h1>
+        
+        <div class="status-panel">
+            <p><strong>Mic Status:</strong> <span id="mic-status">Not requested</span></p>
+            <p><strong>Signaling:</strong> <span id="signaling-status">Disconnected</span></p>
+            <p><strong>Call State:</strong> <span id="call-status">Idle</span></p>
+        </div>
+
+        <div class="controls">
+            <button id="btn-join">Join Room</button>
+            <button id="btn-call" disabled>Call</button>
+            <button id="btn-accept" style="display: none;">Accept Call</button>
+            <button id="btn-hangup" disabled>Hang Up</button>
+        </div>
+
+        <!-- Audio element to play remote stream (hidden from UI) -->
+        <audio id="remoteAudio" autoplay></audio>
+    </div>
+
+    <!-- Socket.IO Client Library -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
