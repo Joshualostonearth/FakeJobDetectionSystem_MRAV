@@ -5,13 +5,24 @@
   "offer_details": {
     "salary": "$500/week",
     "start_date": "2026-10-01",
-    "location": "Remote",
     "contact_email": "hr@acme-tech-careers.com"
   },
   "suspicion_reasons": [
-    {"id": "R1", "reason": "No official website found for this company"},
-    {"id": "R2", "reason": "Offer received without any interview"},
-    {"id": "R3", "reason": "Asked to pay a registration fee upfront"},
-    {"id": "R4", "reason": "Communication only via WhatsApp, no official email"}
+    {
+      "id": "R1",
+      "reason": "No official website found for this company"
+    },
+    {
+      "id": "R2",
+      "reason": "Offer received without any interview"
+    },
+    {
+      "id": "R3",
+      "reason": "Asked to pay a registration fee upfront"
+    },
+    {
+      "id": "R4",
+      "reason": "Communication only via WhatsApp, no official email"
+    }
   ]
 }

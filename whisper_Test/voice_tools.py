@@ -261,6 +261,28 @@ class WhisperListener:
         self._connected = False
         self._listening = False
 
+    def flush(self, wait: float = 0.5):
+        """Discard any segments accumulated while not listening (e.g., TTS bleed).
+
+        Call this after TTS playback finishes and before listen() to ensure
+        the mic-captured question audio is skipped.
+
+        Args:
+            wait: Seconds to wait for in-flight segments to finalize before
+                  advancing the offset.
+        """
+        # Briefly enable listening so pending callbacks are processed
+        self._listening = True
+        time.sleep(wait)
+        self._listening = False
+
+        with self._lock:
+            # Advance offset past everything accumulated (including from TTS bleed)
+            self._segment_offset += len(self._committed_texts)
+            self._committed_texts = []
+            self._partial_text = ""
+            self._last_activity_time = 0.0
+
     def _on_transcription(self, text: str, segments: list):
         """Callback from whisper-live. Only accumulates when _listening is True."""
         # Signal that we got at least one callback (connection is alive)
