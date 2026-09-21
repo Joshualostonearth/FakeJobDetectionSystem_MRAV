@@ -2,7 +2,7 @@
 venv/
 env/
 .env
-
+whisper_Test/.venv
 # Vector Database Indexes
 faiss_index/
 
