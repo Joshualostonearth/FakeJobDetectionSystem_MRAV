@@ -13,7 +13,7 @@ const fs       = require('fs');
 // ── Person 1 modules ──────────────────────────────────────────────────────────
 const { transcribeAudio }                   = require('./audio/stt');
 const { synthesizeSpeech }                  = require('./audio/tts');
-const { mimeToExt, cleanupFile }            = require('./audio/audio-utils');
+const { mimeToExt, cleanupFile, getTempFilePath } = require('./audio/audio-utils');
 const { registerTTSFile, getTTSFile, removeTTSFile } = require('./audio/audio-store');
 const { sendTranscript, handleAgentResponse } = require('./interfaces/ai-interface');
 
@@ -33,23 +33,8 @@ const io = new Server(server, {
 // Store uploaded audio in server/uploads/ with original extension preserved.
 // The uploads/ directory is created by audio-utils.js on module load.
 
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // Ensure uploads dir exists (audio-utils creates it, but belt-and-suspenders)
-        if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-        cb(null, UPLOADS_DIR);
-    },
-    filename: (req, file, cb) => {
-        const ext  = mimeToExt(file.mimetype);
-        const name = `upload_${Date.now()}.${ext}`;
-        cb(null, name);
-    },
-});
-
 const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('audio/')) {
@@ -59,6 +44,8 @@ const upload = multer({
         }
     },
 });
+
+
 
 // ═════════════════════════════════════════════════════════════════════════════
 // REST API ROUTES
@@ -82,86 +69,86 @@ const upload = multer({
  * }
  */
 app.post('/api/audio', upload.single('audio'), async (req, res) => {
-    const audioPath = req.file?.path;
-
     // ── Validate ──────────────────────────────────────────────────────────────
-    if (!req.file || !audioPath) {
+    if (!req.file || !req.file.buffer) {
         console.error('[Audio] POST /api/audio — no audio file in request');
         return res.status(400).json({ success: false, error: 'No audio file received.' });
     }
 
-    console.log(`[Audio] Received upload: ${req.file.filename} (${req.file.size} bytes, ${req.file.mimetype})`);
+    console.log(`[Audio] Received upload: (${req.file.size} bytes, ${req.file.mimetype})`);
 
     try {
-        // ── STT ───────────────────────────────────────────────────────────────
-        let sttResult;
-        try {
-            sttResult = await transcribeAudio(audioPath);
-        } catch (sttErr) {
-            console.error('[STT] Transcription failed:', sttErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'STT transcription failed.', detail: sttErr.message });
+        // Forward the audio buffer to Python bridge
+        const ext = mimeToExt(req.file.mimetype);
+        const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+        const formData = new FormData();
+        formData.append('audio', blob, `recording.${ext}`);
+        
+        const bridgeRes = await fetch(`http://localhost:5000/bridge/process-audio?format=${ext}`, {
+            method: 'POST',
+            body: formData,
+        });
+        
+        if (!bridgeRes.ok) {
+            throw new Error(`Bridge returned HTTP ${bridgeRes.status}: ${await bridgeRes.text()}`);
         }
-
-        const transcript = {
-            type:      'transcript',
-            text:      sttResult.transcript,
-            timestamp: Date.now(),
-        };
+        
+        const result = await bridgeRes.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Bridge error');
+        }
 
         // Emit transcript to any browser listeners via Socket.IO
-        io.emit('transcript', transcript);
-        console.log('[Audio] Emitted transcript event via Socket.IO');
-
-        // ── AI Interface ──────────────────────────────────────────────────────
-        let agentResponse;
-        try {
-            agentResponse = await sendTranscript(transcript);
-        } catch (aiErr) {
-            console.error('[AI Interface] Failed:', aiErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'AI interface failed.', detail: aiErr.message });
+        if (result.transcript) {
+            io.emit('transcript', {
+                type: 'transcript',
+                text: result.transcript,
+                timestamp: Date.now(),
+            });
         }
 
-        // ── TTS ───────────────────────────────────────────────────────────────
-        let ttsResult;
-        try {
-            ttsResult = await synthesizeSpeech(agentResponse.text);
-        } catch (ttsErr) {
-            console.error('[TTS] Synthesis failed:', ttsErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'TTS synthesis failed.', detail: ttsErr.message });
+        let ttsId = null;
+
+        // TTS audio is returned separately — register it
+        if (result.tts_audio_b64) {
+            const audioBuf = Buffer.from(result.tts_audio_b64, 'base64');
+            const audioPath = getTempFilePath('mp3');
+            fs.writeFileSync(audioPath, audioBuf);
+            ttsId = registerTTSFile(audioPath, result.tts_mime_type || 'audio/mpeg');
+            
+            io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                ttsUrl: `/api/tts/${ttsId}`,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            console.log(`[Audio] Pipeline complete. TTS ID: ${ttsId}`);
+        } else if (result.agent_text) {
+             io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            console.log(`[Audio] Pipeline complete. No TTS generated.`);
+        } else {
+             console.log(`[Audio] Pipeline complete. No agent response.`);
         }
-
-        // Register TTS file and get an ID for the browser to fetch it
-        const ttsId = registerTTSFile(ttsResult.audioPath, ttsResult.mimeType);
-
-        // Notify browser via Socket.IO so the TTS can be played through WebRTC
-        io.emit('agent-response', {
-            type:                'agent_response',
-            text:                agentResponse.text,
-            ttsUrl:              `/api/tts/${ttsId}`,
-            conversation_complete: agentResponse.conversation_complete,
-        });
-
-        console.log(`[Audio] Pipeline complete. TTS ID: ${ttsId}`);
-
-        // ── Cleanup uploaded audio ────────────────────────────────────────────
-        cleanupFile(audioPath);
-
-        return res.json({
-            success:              true,
-            transcript:           sttResult.transcript,
-            duration:             sttResult.duration,
-            agentResponse:        agentResponse.text,
+        
+        return res.json({ 
+            success: true, 
+            transcript: result.transcript,
+            agentResponse: result.agent_text,
             ttsId,
-            conversationComplete: agentResponse.conversation_complete,
+            conversationComplete: result.conversation_complete,
+            questionIndex: result.question_index,
+            answerStatus: result.answer_status
         });
 
     } catch (err) {
         console.error('[Audio] Unexpected error in /api/audio:', err);
-        cleanupFile(audioPath);
-        return res.status(500).json({ success: false, error: 'Internal server error.' });
+        return res.status(500).json({ success: false, error: 'Internal server error.', detail: err.message });
     }
 });
 
@@ -246,16 +233,93 @@ app.post('/api/test-tts', async (req, res) => {
     }
 });
 
-/**
- * GET /api/status
- * Health check — confirms server and modules are running.
- */
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+    let bridgeStatus = 'unknown';
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/status');
+        if (bridgeRes.ok) {
+            bridgeStatus = 'connected';
+        } else {
+            bridgeStatus = 'error';
+        }
+    } catch {
+        bridgeStatus = 'disconnected';
+    }
+
     res.json({
         status:      'ok',
-        sttProvider: process.env.STT_PROVIDER || 'mock',
-        ttsProvider: process.env.TTS_PROVIDER || 'mock',
+        sttProvider: process.env.STT_PROVIDER || 'bridge',
+        ttsProvider: process.env.TTS_PROVIDER || 'edgetts',
+        bridgeStatus
     });
+});
+
+/**
+ * POST /api/start-session
+ * Starts a new verification session via the Python bridge.
+ */
+app.post('/api/start-session', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/start-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body),
+        });
+        const data = await bridgeRes.json();
+        return res.status(bridgeRes.status).json(data);
+    } catch (err) {
+        console.error('[Session] Error starting session:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/session-status
+ * Checks the status of the current verification session.
+ */
+app.get('/api/session-status', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/status');
+        const data = await bridgeRes.json();
+        return res.status(bridgeRes.status).json(data);
+    } catch (err) {
+        console.error('[Session] Error checking session status:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/speak-first
+ * Triggers the Q1 greeting after the phone user says "Hello?".
+ */
+app.post('/api/speak-first', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/speak-first', {
+            method: 'POST',
+        });
+        const result = await bridgeRes.json();
+        
+        if (result.success && result.tts_audio_b64) {
+            const audioBuf = Buffer.from(result.tts_audio_b64, 'base64');
+            const audioPath = getTempFilePath('mp3');
+            fs.writeFileSync(audioPath, audioBuf);
+            const ttsId = registerTTSFile(audioPath, result.tts_mime_type || 'audio/mpeg');
+            
+            io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                ttsUrl: `/api/tts/${ttsId}`,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            
+            return res.json({ success: true, ttsId, text: result.agent_text });
+        }
+        return res.status(bridgeRes.status).json(result);
+    } catch (err) {
+        console.error('[Session] Error in speak-first:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════

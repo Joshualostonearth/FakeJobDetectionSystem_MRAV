@@ -55,9 +55,27 @@
                 </div>
             </section>
 
-            <!-- ── Right column: AI Pipeline ────────────────────────────── -->
-            <section class="card" id="card-ai">
-                <h2 class="card-title">AI Pipeline</h2>
+            <!-- ── Right column: Verification Session & AI ────────────────── -->
+            <div class="right-column">
+                
+                <section class="card" id="card-session">
+                    <h2 class="card-title">Verification Session</h2>
+                    
+                    <div class="session-input">
+                        <label for="input-file">Input JSON:</label>
+                        <select id="input-file" class="select-input">
+                            <option value="input/acme_tech_solutions_data_analyst_intern">Acme Tech - Data Analyst Intern</option>
+                        </select>
+                        <button id="btn-start-session" class="btn btn-primary" disabled>Start Session</button>
+                    </div>
+                    
+                    <div class="questions-list" id="questions-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </section>
+
+                <section class="card" id="card-ai">
+                    <h2 class="card-title">AI Pipeline (Manual)</h2>
 
                 <div class="status-list">
                     <div class="status-row">
@@ -73,11 +91,12 @@
                 </div>
 
                 <p class="hint">
-                    Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to receiver.
+                    Manual override: Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to receiver.
                 </p>
-            </section>
+                </section>
+            </div>
 
-            <!-- ── Bottom: Transcript &amp; Agent panels ──────────────────────── -->
+            <!-- ── Bottom: Transcript & Agent panels ──────────────────────── -->
             <section class="card card-wide" id="card-transcript">
                 <h2 class="card-title">Transcript &amp; Agent Response</h2>
 

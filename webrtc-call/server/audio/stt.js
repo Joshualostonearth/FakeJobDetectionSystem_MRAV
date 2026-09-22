@@ -49,6 +49,9 @@ async function transcribeAudio(audioPath) {
         case 'whisperflow':
             return await _transcribeWithWhisperFlow(audioPath);
 
+        case 'bridge':
+            return await _transcribeWithBridge(audioPath);
+
         case 'mock':
         default:
             return await _transcribeWithMock(audioPath);
@@ -108,6 +111,24 @@ async function _transcribeWithWhisperFlow(audioPath) {
 
 function _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ── Provider: Bridge ──────────────────────────────────────────────────────────
+// When the Python bridge handles audio processing end-to-end, this is a no-op.
+// The actual transcription happens in call_bridge.py's /bridge/process-audio.
+
+async function _transcribeWithBridge(audioPath) {
+    console.log('[STT] Bridge mode — STT handled by Python sidecar.');
+    // Return a placeholder; the bridge does the real transcription.
+    // In bridge mode, server.js sends raw audio to the bridge directly
+    // and bypasses this module's transcription.
+    let duration = 0;
+    try {
+        const stats = fs.statSync(audioPath);
+        duration = parseFloat(((stats.size * 8) / (64 * 1000)).toFixed(2));
+    } catch { /* ignore */ }
+
+    return { transcript: '[Bridge mode]', duration };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

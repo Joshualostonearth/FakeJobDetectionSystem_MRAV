@@ -2,135 +2,141 @@
   "meta": {
     "company": "Acme Tech Solutions",
     "job": "Data Analyst Intern",
-    "caller_type": "automated AI assistant",
-    "created_at": "2026-09-21T14:33:11.917674+00:00",
-    "completed_at": "2026-09-21T14:35:59.054850+00:00"
+    "caller_type": "automated AI assistant (WebRTC)",
+    "created_at": "2026-09-22T13:56:08.048209+00:00",
+    "completed_at": "2026-09-22T13:58:19.087133+00:00"
   },
   "responses": [
     {
       "id": 1,
-      "question": "Hello, I’m an automated assistant calling on behalf of a candidate who received a job offer—could you confirm this is Acme Tech Solutions?",
-      "purpose": "verify company identity and call legitimacy",
+      "question": "Am I speaking with someone at Acme Tech Solutions?",
+      "purpose": "Disclose AI identity and confirm company",
       "targets_reason_ids": [
-        "R1",
-        "R4"
+        "R1"
       ],
-      "legit_answer_hint": "Yes, this is the correct company",
-      "answer": "any solution? Yes, this is our integral solution",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:33:22.081670+00:00",
-      "answered_at": "2026-09-21T14:33:41.574861+00:00"
+      "legit_answer_hint": "Yes, confirms the company name and greets back",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:56:15.631069+00:00",
+      "answered_at": null
     },
     {
       "id": 2,
-      "question": "Could you please share Acme Tech Solutions’ official website address?",
-      "purpose": "confirm company’s online presence",
+      "question": "Could you share your official company website address?",
+      "purpose": "Verify company has a real web presence",
       "targets_reason_ids": [
         "R1"
       ],
-      "legit_answer_hint": "Provide a verified URL",
-      "answer": "Please share, app me tech solutions official website address and at www.missouricious.com",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:33:41.575283+00:00",
-      "answered_at": "2026-09-21T14:33:54.823145+00:00"
+      "legit_answer_hint": "Provides a working company website URL",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:56:26.563905+00:00",
+      "answered_at": null
     },
     {
       "id": 3,
-      "question": "Where is Acme Tech Solutions’ main office located?",
-      "purpose": "verify company’s physical registration",
+      "question": "Where is your main office or headquarters located?",
+      "purpose": "Confirm physical presence and legitimacy",
       "targets_reason_ids": [
         "R1"
       ],
-      "legit_answer_hint": "Give address details",
-      "answer": "Where is AT&T's official state office located? Bangalore, India",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:33:54.823676+00:00",
-      "answered_at": "2026-09-21T14:34:08.197534+00:00"
+      "legit_answer_hint": "Gives a specific verifiable office address",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:56:38.948455+00:00",
+      "answered_at": null
     },
     {
       "id": 4,
-      "question": "What was the exact job title offered to the candidate?",
-      "purpose": "confirm role clarity and legitimacy",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "Data Analyst Intern",
-      "answer": "That is an analysis in there.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:34:08.198203+00:00",
-      "answered_at": "2026-09-21T14:34:26.005432+00:00"
+      "question": "The candidate received an offer for Data Analyst Intern. Could you confirm this role exists?",
+      "purpose": "Verify the role is real and currently open",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Confirms the role and describes it briefly",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:56:53.262407+00:00",
+      "answered_at": null
     },
     {
       "id": 5,
-      "question": "Could you describe a few key responsibilities for this position?",
-      "purpose": "validate offer details and role authenticity",
+      "question": "What does the interview or selection process look like for this role?",
+      "purpose": "Check if a proper hiring process exists",
       "targets_reason_ids": [
         "R2"
       ],
-      "legit_answer_hint": "List typical intern duties",
-      "answer": "Basically, hello.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:34:26.005921+00:00",
-      "answered_at": "2026-09-21T14:35:03.486375+00:00"
+      "legit_answer_hint": "Describes interview rounds and evaluation steps",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:57:09.961867+00:00",
+      "answered_at": null
     },
     {
       "id": 6,
-      "question": "When was the candidate expected to start this role?",
-      "purpose": "check for unrealistic timelines",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "2026-10-01",
-      "answer": "next month",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:03.489563+00:00",
-      "answered_at": "2026-09-21T14:35:14.285560+00:00"
-    },
-    {
-      "id": 7,
-      "question": "Did the candidate have an interview before receiving this offer?",
-      "purpose": "confirm selection process legitimacy",
-      "targets_reason_ids": [
-        "R2"
-      ],
-      "legit_answer_hint": "Yes, they interviewed",
-      "answer": "No.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:14.286909+00:00",
-      "answered_at": "2026-09-21T14:35:23.206742+00:00"
-    },
-    {
-      "id": 8,
-      "question": "Was there any fee or payment requested to secure this position?",
-      "purpose": "detect upfront financial demands",
+      "question": "Could you confirm the compensation details for this position?",
+      "purpose": "Verify offered pay matches company records",
       "targets_reason_ids": [
         "R3"
       ],
-      "legit_answer_hint": "No fees were asked",
-      "answer": "Yes.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:23.207271+00:00",
-      "answered_at": "2026-09-21T14:35:32.204845+00:00"
+      "legit_answer_hint": "Confirms salary range consistent with the offer",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:57:23.466785+00:00",
+      "answered_at": null
+    },
+    {
+      "id": 7,
+      "question": "Are there any fees or payments required from the candidate before starting?",
+      "purpose": "Check for upfront payment demands",
+      "targets_reason_ids": [
+        "R3"
+      ],
+      "legit_answer_hint": "Says no fees are required from candidates",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:57:35.541224+00:00",
+      "answered_at": null
+    },
+    {
+      "id": 8,
+      "question": "What documents will the candidate need to provide for onboarding?",
+      "purpose": "Identify if unusual documents are requested",
+      "targets_reason_ids": [
+        "R3",
+        "R4"
+      ],
+      "legit_answer_hint": "Lists standard documents like ID and tax forms",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:57:48.894266+00:00",
+      "answered_at": null
     },
     {
       "id": 9,
-      "question": "How did the candidate receive their official offer—email or another method?",
-      "purpose": "verify communication channel legitimacy",
+      "question": "What is the official email address for communicating about this offer?",
+      "purpose": "Verify official communication channel exists",
       "targets_reason_ids": [
         "R4"
       ],
-      "legit_answer_hint": "Official email (hr@acme-tech-careers.com)",
-      "answer": "through LinkedIn.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:32.205327+00:00",
-      "answered_at": "2026-09-21T14:35:41.078857+00:00"
+      "legit_answer_hint": "Provides a corporate domain email address",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:58:03.603873+00:00",
+      "answered_at": null
     },
     {
       "id": 10,
-      "question": "Could you provide the best contact method for next steps or official documents?",
-      "purpose": "ensure proper follow-up channel",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "Official email address",
-      "answer": "at gmail.com",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:41.079404+00:00",
-      "answered_at": "2026-09-21T14:35:52.928352+00:00"
+      "question": "What would be the best way for the candidate to follow up with your team? Thank you for your time.",
+      "purpose": "Get official contact and close politely",
+      "targets_reason_ids": [
+        "R4"
+      ],
+      "legit_answer_hint": "Provides official phone or email for follow-up",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-22T13:58:19.086614+00:00",
+      "answered_at": null
     }
   ]
 }
