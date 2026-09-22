@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WebRTC Voice Agent — Person 1 audio infrastructure for AI voice verification">
+    <title>WebRTC Voice Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-shell">
+
+        <!-- ── Header ─────────────────────────────────────────────────────── -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-mark"></div>
+                <div>
+                    <h1>Voice Agent</h1>
+                    <span class="subtitle">Person 1 — Audio Infrastructure</span>
+                </div>
+            </div>
+            <div class="badge" id="audio-mode">MODE: HUMAN</div>
+        </header>
+
+        <main class="main-grid">
+
+            <!-- ── Left column: Connection ──────────────────────────────── -->
+            <section class="card" id="card-connection">
+                <h2 class="card-title">Connection</h2>
+
+                <div class="status-list">
+                    <div class="status-row">
+                        <span class="status-label">Microphone</span>
+                        <span class="status-value" id="mic-status">Not requested</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Signaling</span>
+                        <span class="status-value" id="signaling-status">Disconnected</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Call State</span>
+                        <span class="status-value" id="call-status">Idle</span>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <button id="btn-join"   class="btn btn-primary">Join Room</button>
+                    <button id="btn-call"   class="btn btn-success"  disabled>Call</button>
+                    <button id="btn-accept" class="btn btn-warning"   style="display:none;">Accept Call</button>
+                    <button id="btn-hangup" class="btn btn-danger"    disabled>Hang Up</button>
+                </div>
+            </section>
+
+            <!-- ── Right column: AI Pipeline ────────────────────────────── -->
+            <section class="card" id="card-ai">
+                <h2 class="card-title">AI Pipeline</h2>
+
+                <div class="status-list">
+                    <div class="status-row">
+                        <span class="status-label">AI Status</span>
+                        <span class="status-value" id="ai-status">Idle</span>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <button id="btn-start-ai" class="btn btn-ai"     disabled>▶ Start Capture</button>
+                    <button id="btn-stop-ai"  class="btn btn-ai-stop" disabled>■ Stop &amp; Process</button>
+                    <button id="btn-test-tts" class="btn btn-secondary" disabled>🔊 Test TTS → WebRTC</button>
+                </div>
+
+                <p class="hint">
+                    Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to receiver.
+                </p>
+            </section>
+
+            <!-- ── Bottom: Transcript &amp; Agent panels ──────────────────────── -->
+            <section class="card card-wide" id="card-transcript">
+                <h2 class="card-title">Transcript &amp; Agent Response</h2>
+
+                <div class="terminal-grid">
+                    <div class="terminal-panel">
+                        <div class="terminal-label">
+                            <span class="dot dot-blue"></span>
+                            Receiver Speech → STT Transcript
+                        </div>
+                        <div class="terminal-body" id="transcript-text">
+                            Transcript will appear here after recording...
+                        </div>
+                    </div>
+
+                    <div class="terminal-panel">
+                        <div class="terminal-label">
+                            <span class="dot dot-green"></span>
+                            AI Agent Response → TTS
+                        </div>
+                        <div class="terminal-body" id="agent-text">
+                            Agent response will appear here...
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ── Footer ─────────────────────────────────────────────────────── -->
+        <footer class="app-footer">
+            <span>Person 1 Infrastructure — WebRTC · STT · TTS · AI Interface</span>
+            <span>Person 2 integrates LLM in <code>server/interfaces/ai-interface.js</code></span>
+        </footer>
+
+    </div>
+
+    <!-- Hidden remote audio element -->
+    <audio id="remoteAudio" autoplay></audio>
+
+    <!-- Load audio-manager before app.js -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="audio/audio-manager.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
