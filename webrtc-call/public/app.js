@@ -193,19 +193,30 @@ function connectSignaling() {
         if (response.questionIndex !== undefined) {
             updateQuestionStatus(response.questionIndex, response.conversation_complete);
         }
-        
-        if (response.conversation_complete) {
-            sessionActive = false;
-            updateAIStatus('Verification Complete', '#2ecc71');
-            btnStartSession.disabled = false;
-        }
 
         // Route TTS audio through WebRTC — only on the operator device (Person 1)
         // The other device (Person 2 / phone) hears it through the WebRTC audio stream
         if (response.ttsUrl && sessionActive) {
             audioManager.handleAgentResponse(response);
-        } else if (sessionActive && !response.conversation_complete) {
-            // If there's no TTS (e.g. wait request), just start listening again immediately
+
+            // If this is the final response, end session AFTER TTS finishes playing
+            if (response.conversation_complete) {
+                const origCallback = audioManager.onTTSComplete;
+                audioManager.onTTSComplete = () => {
+                    sessionActive = false;
+                    updateAIStatus('Verification Complete', '#2ecc71');
+                    btnStartSession.disabled = false;
+                    // Restore the normal callback
+                    audioManager.onTTSComplete = origCallback;
+                };
+            }
+        } else if (response.conversation_complete) {
+            // No TTS but conversation is done
+            sessionActive = false;
+            updateAIStatus('Verification Complete', '#2ecc71');
+            btnStartSession.disabled = false;
+        } else if (sessionActive) {
+            // No TTS (e.g. wait request), just start listening again immediately
             setTimeout(() => autoRecordLoop(), 500);
         }
     });
@@ -418,16 +429,12 @@ async function startVerificationSession() {
     updateAIStatus('Starting session...', '#f0a500');
     
     try {
-        // We're just passing an ID here, in a real app this would load the JSON content.
-        // Since we're prototyping, we'll fetch the JSON from the server or assume the bridge
-        // has a way to load it. Actually, we'll just send a dummy payload and let the bridge
-        // load the file in our test setup, or we can fetch the local json first.
-        
-        // Fetch the local JSON file
+        // Fetch the local JSON file (input data with company info + suspicion reasons)
         const fileName = inputFileSelect.value;
         const resJson = await fetch(`/${fileName}.json`);
         const inputData = await resJson.json();
         
+        // Step 1: Create the session (generates questions via Ministral)
         const res = await fetch('/api/start-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -439,13 +446,23 @@ async function startVerificationSession() {
         
         sessionActive = true;
         updateQuestionsPanel(data.questions);
-        
         audioManager.setMode('agent');
         
-        // Trigger Q1 since we're assuming the phone user already said "Hello?"
-        // Or wait for them to speak first. We chose "phone user speaks first".
-        updateAIStatus('Waiting for phone user to say Hello...', '#f0a500');
-        autoRecordLoop();
+        // Step 2: Speak the greeting + Q1 (generates TTS audio)
+        updateAIStatus('AI introducing itself...', '#f0a500');
+        const speakRes = await fetch('/api/speak-first', { method: 'POST' });
+        const speakData = await speakRes.json();
+        
+        if (speakData.success && speakData.tts_audio_b64) {
+            // The server already emits 'agent-response' via Socket.IO,
+            // which triggers TTS playback and then autoRecordLoop via onTTSComplete.
+            updateAgentPanel(speakData.agent_text);
+            updateAIStatus('AI speaking Q1...', '#2ecc71');
+        } else {
+            // Fallback: no TTS, just start listening
+            console.warn('[Session] speak-first returned no audio, starting listen loop.');
+            autoRecordLoop();
+        }
         
     } catch (err) {
         console.error('[Session] Failed to start:', err);

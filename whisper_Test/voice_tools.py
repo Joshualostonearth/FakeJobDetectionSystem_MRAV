@@ -556,12 +556,17 @@ class WhisperFileTranscriber:
             got_segments.set()
             # Collect all completed segments
             committed = []
+            partial = ""
             for seg in segments:
                 if seg.get("completed", False):
                     committed.append(seg["text"].strip())
-            if committed:
-                result_text.clear()
-                result_text.extend(committed)
+                else:
+                    partial = seg["text"].strip()
+            
+            result_text.clear()
+            result_text.extend(committed)
+            if partial:
+                result_text.append(partial)
 
         # Create a TranscriptionClient
         client = TranscriptionClient(

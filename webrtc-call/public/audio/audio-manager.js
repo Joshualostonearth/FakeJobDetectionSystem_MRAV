@@ -193,6 +193,8 @@ class AudioManager {
         source.connect(analyser);
         
         let silenceStart = null;
+        const recordingStartTime = Date.now();
+        const minRecordingMs = 3000; // Wait at least 3s before allowing silence-stop
         
         const checkSilence = () => {
             if (!this._isRecording) return; // Stop checking if recording stopped
@@ -201,11 +203,19 @@ class AudioManager {
             analyser.getByteFrequencyData(data);
             const volume = data.reduce((a, b) => a + b, 0) / data.length;
             
+            const elapsed = Date.now() - recordingStartTime;
+            
+            // Don't check for silence until minimum recording time has passed
+            if (elapsed < minRecordingMs) {
+                requestAnimationFrame(checkSilence);
+                return;
+            }
+            
             if (volume < 5) { // silence threshold
                 if (!silenceStart) {
                     silenceStart = Date.now();
                 } else if (Date.now() - silenceStart > silenceMs) {
-                    console.log(`[Audio] Silence detected for ${silenceMs}ms. Stopping capture.`);
+                    console.log(`[Audio] Silence detected for ${silenceMs}ms after ${(elapsed/1000).toFixed(1)}s recording. Stopping capture.`);
                     this.stopRemoteAudioCapture();
                     return;
                 }
