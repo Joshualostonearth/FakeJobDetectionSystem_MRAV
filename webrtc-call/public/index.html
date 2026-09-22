@@ -7,7 +7,9 @@
     <meta name="description" content="WebRTC Voice Agent — Person 1 audio infrastructure for AI voice verification">
     <title>WebRTC Voice Agent</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -17,13 +19,12 @@
         <!-- ── Header ─────────────────────────────────────────────────────── -->
         <header class="app-header">
             <div class="header-left">
-                <div class="logo-mark"></div>
                 <div>
                     <h1>Voice Agent</h1>
                     <span class="subtitle">Person 1 — Audio Infrastructure</span>
                 </div>
             </div>
-            <div class="badge" id="audio-mode">MODE: HUMAN</div>
+            <div class="badge" id="audio-mode">Mode: Human</div>
         </header>
 
         <main class="main-grid">
@@ -48,27 +49,28 @@
                 </div>
 
                 <div class="controls-group">
-                    <button id="btn-join"   class="btn btn-primary">Join Room</button>
-                    <button id="btn-call"   class="btn btn-success"  disabled>Call</button>
-                    <button id="btn-accept" class="btn btn-warning"   style="display:none;">Accept Call</button>
-                    <button id="btn-hangup" class="btn btn-danger"    disabled>Hang Up</button>
+                    <button id="btn-join" class="btn btn-primary">Join Room</button>
+                    <button id="btn-call" class="btn btn-success" disabled>Call</button>
+                    <button id="btn-accept" class="btn btn-warning" style="display:none;">Accept Call</button>
+                    <button id="btn-hangup" class="btn btn-danger" disabled>Hang Up</button>
                 </div>
             </section>
 
             <!-- ── Right column: Verification Session & AI ────────────────── -->
             <div class="right-column">
-                
+
                 <section class="card" id="card-session">
                     <h2 class="card-title">Verification Session</h2>
-                    
+
                     <div class="session-input">
                         <label for="input-file">Input JSON:</label>
                         <select id="input-file" class="select-input">
-                            <option value="input/acme_tech_solutions_data_analyst_intern">Acme Tech - Data Analyst Intern</option>
+                            <option value="input/acme_tech_solutions_data_analyst_intern">Acme Tech - Data Analyst
+                                Intern</option>
                         </select>
                         <button id="btn-start-session" class="btn btn-primary" disabled>Start Session</button>
                     </div>
-                    
+
                     <div class="questions-list" id="questions-list">
                         <!-- Populated dynamically -->
                     </div>
@@ -77,22 +79,23 @@
                 <section class="card" id="card-ai">
                     <h2 class="card-title">AI Pipeline (Manual)</h2>
 
-                <div class="status-list">
-                    <div class="status-row">
-                        <span class="status-label">AI Status</span>
-                        <span class="status-value" id="ai-status">Idle</span>
+                    <div class="status-list">
+                        <div class="status-row">
+                            <span class="status-label">AI Status</span>
+                            <span class="status-value" id="ai-status">Idle</span>
+                        </div>
                     </div>
-                </div>
 
-                <div class="controls-group">
-                    <button id="btn-start-ai" class="btn btn-ai"     disabled>▶ Start Capture</button>
-                    <button id="btn-stop-ai"  class="btn btn-ai-stop" disabled>■ Stop &amp; Process</button>
-                    <button id="btn-test-tts" class="btn btn-secondary" disabled>🔊 Test TTS → WebRTC</button>
-                </div>
+                    <div class="controls-group">
+                        <button id="btn-start-ai" class="btn btn-ai" disabled>Start Capture</button>
+                        <button id="btn-stop-ai" class="btn btn-ai-stop" disabled>Stop &amp; Process</button>
+                        <button id="btn-test-tts" class="btn btn-secondary" disabled>Test TTS → WebRTC</button>
+                    </div>
 
-                <p class="hint">
-                    Manual override: Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to receiver.
-                </p>
+                    <p class="hint">
+                        Manual override: Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to
+                        receiver.
+                    </p>
                 </section>
             </div>
 
