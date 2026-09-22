@@ -62,8 +62,8 @@ const audioManager = new AudioManager();
 // ── Person 2 transcript callback ──────────────────────────────────────────────
 // Person 2 can replace or extend this callback.
 audioManager.onTranscript = (transcript) => {
-    console.log('[App] Transcript received:', transcript.text);
-    updateTranscriptPanel(transcript.text);
+    console.log('[App] Transcript received via fetch:', transcript.text);
+    // UI update is handled by the socket.on('transcript') listener to keep things centralized
 };
 
 // ── Auto-loop trigger ─────────────────────────────────────────────────────────
@@ -531,15 +531,27 @@ function updateAIStatus(text, color = '#888') {
 
 function updateTranscriptPanel(text) {
     if (transcriptEl) {
-        transcriptEl.textContent = text;
-        transcriptEl.style.opacity = '1';
+        if (transcriptEl.textContent.trim() === 'Transcript will appear here after recording...') {
+            transcriptEl.textContent = '';
+        }
+        const p = document.createElement('div');
+        p.style.marginBottom = '8px';
+        p.textContent = `> ${text}`;
+        transcriptEl.appendChild(p);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 }
 
 function updateAgentPanel(text) {
     if (agentEl) {
-        agentEl.textContent = text;
-        agentEl.style.opacity = '1';
+        if (agentEl.textContent.trim() === 'Agent response will appear here...') {
+            agentEl.textContent = '';
+        }
+        const p = document.createElement('div');
+        p.style.marginBottom = '8px';
+        p.textContent = `> ${text}`;
+        agentEl.appendChild(p);
+        agentEl.scrollTop = agentEl.scrollHeight;
     }
 }
 
