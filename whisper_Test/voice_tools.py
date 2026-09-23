@@ -518,14 +518,51 @@ class WhisperFileTranscriber:
             print(f"  [FILE-STT] Audio conversion failed: {e}")
             return ""
 
-        duration_sec = len(pcm_data) / (16000 * 2)  # 16kHz, 16-bit = 2 bytes/sample
-        print(f"  [FILE-STT] Audio duration: {duration_sec:.1f}s")
+        import tempfile
+        import os
+        
+        # We need a temporary file for the TranscriptionClient to read from
+        temp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        temp_wav_path = temp_wav.name
+        temp_wav.close()
 
-        # Stream PCM to WhisperLive and collect transcript
-        transcript = self._stream_to_whisper(pcm_data)
-
-        print(f"  [FILE-STT] Transcript: \"{transcript[:80]}{'...' if len(transcript) > 80 else ''}\"")
-        return transcript
+        try:
+            # Export the 16kHz mono audio directly to a wav file
+            audio_segment.export(temp_wav_path, format="wav")
+            
+            # Create a TranscriptionClient
+            client = TranscriptionClient(
+                host=self.host,
+                port=self.port,
+                lang=self.lang,
+                model=self.model,
+                use_vad=True,
+                log_transcription=False,
+                mute_audio_playback=True,
+            )
+            
+            # TranscriptionClient(audio="...") will automatically stream the file
+            # to WhisperLive, wait for completion, and return the joined transcript!
+            transcript = client(audio=temp_wav_path)
+            
+            # Fallback if the return value is empty but it has internal state
+            if not transcript and hasattr(client, 'client') and hasattr(client.client, 'transcript'):
+                transcript = " ".join(segment["text"].strip() for segment in client.client.transcript)
+                
+            print(f"  [FILE-STT] Transcript: \"{transcript[:80]}{'...' if len(transcript) > 80 else ''}\"")
+            return transcript.strip() if transcript else ""
+            
+        finally:
+            if os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
+            # TranscriptionClient's internal utils.resample creates a file in the CWD
+            import glob
+            temp_stem = os.path.splitext(os.path.basename(temp_wav_path))[0]
+            for f in glob.glob(f"{temp_stem}_resampled.wav"):
+                try:
+                    os.remove(f)
+                except:
+                    pass
 
     def transcribe_file(self, file_path: str) -> str:
         """Transcribe an audio file from disk.
@@ -540,101 +577,4 @@ class WhisperFileTranscriber:
         ext = os.path.splitext(file_path)[1].lstrip(".")
         with open(file_path, "rb") as f:
             return self.transcribe_bytes(f.read(), format=ext or "webm")
-
-    def _stream_to_whisper(self, pcm_data: bytes) -> str:
-        """Stream PCM audio to WhisperLive server and return transcript.
-
-        Uses TranscriptionClient with a custom approach: instead of mic
-        recording, we directly feed PCM chunks via the WebSocket.
-        """
-        result_text = []
-        done_event = threading.Event()
-        got_segments = threading.Event()
-
-        def on_transcription(text: str, segments: list):
-            """Callback from WhisperLive with transcription results."""
-            got_segments.set()
-            # Collect all completed segments
-            committed = []
-            partial = ""
-            for seg in segments:
-                if seg.get("completed", False):
-                    committed.append(seg["text"].strip())
-                else:
-                    partial = seg["text"].strip()
-            
-            result_text.clear()
-            result_text.extend(committed)
-            if partial:
-                result_text.append(partial)
-
-        # Create a TranscriptionClient
-        client = TranscriptionClient(
-            host=self.host,
-            port=self.port,
-            lang=self.lang,
-            model=self.model,
-            use_vad=True,
-            log_transcription=False,
-            transcription_callback=on_transcription,
-        )
-
-        # We need to feed audio data through the client's WebSocket
-        # TranscriptionClient normally records from mic — we'll use its
-        # internal client to send data directly
-        def run_client():
-            try:
-                client()
-            except Exception as e:
-                print(f"  [FILE-STT] Client error: {e}")
-            finally:
-                done_event.set()
-
-        client_thread = threading.Thread(target=run_client, daemon=True)
-        client_thread.start()
-
-        # Wait for connection to establish
-        time.sleep(1.0)
-
-        # Stream PCM chunks through the WebSocket
-        # WhisperLive expects chunks of raw audio at the recording rate
-        chunk_size = 4096  # bytes per chunk
-        chunk_interval = chunk_size / (16000 * 2)  # seconds per chunk at 16kHz 16-bit
-
-        try:
-            ws_client = client.client
-            if ws_client and hasattr(ws_client, 'client_socket') and ws_client.client_socket:
-                for i in range(0, len(pcm_data), chunk_size):
-                    chunk = pcm_data[i:i + chunk_size]
-                    try:
-                        ws_client.client_socket.send(chunk, opcode=0x2)  # binary
-                    except Exception:
-                        break
-                    # Pace the sending to match real-time (but 4x faster)
-                    time.sleep(chunk_interval * 0.25)
-
-                # Send a small silence buffer to trigger final segment
-                silence = b'\x00' * (16000 * 2)  # 1 second of silence
-                try:
-                    ws_client.client_socket.send(silence, opcode=0x2)
-                except Exception:
-                    pass
-
-                # Wait for final transcription
-                time.sleep(2.0)
-
-        except Exception as e:
-            print(f"  [FILE-STT] Streaming error: {e}")
-
-        # Collect results
-        transcript = " ".join(result_text).strip()
-
-        # Clean up - disconnect the client
-        try:
-            if ws_client and hasattr(ws_client, 'client_socket') and ws_client.client_socket:
-                ws_client.client_socket.close()
-        except Exception:
-            pass
-
-        return transcript
 
