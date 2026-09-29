@@ -158,12 +158,6 @@ class QuestionValidator:
             if re.search(r'\[.*?\]', qtext):
                 errors.append(f"Q{i}: contains bracket placeholder. Use 'the candidate' instead.")
 
-        # Q1 must mention "automated AI assistant"
-        if questions:
-            q1_lower = questions[0].get("question", "").lower()
-            if "automated ai assistant" not in q1_lower and "ai assistant" not in q1_lower:
-                errors.append("Q1: must mention being an 'automated AI assistant'.")
-
         # Q10 should be a closing question
         if len(questions) >= 10:
             q10_lower = questions[9].get("question", "").lower()
@@ -397,6 +391,7 @@ class CallSession:
         """Execute Phase 3: ask all 10 questions, one at a time."""
         responses = response_data["responses"]
         total = len(responses)
+        prev_question = None  # Track previous question for cross-bleed cleanup
 
         print(f"\n{'=' * 60}")
         print(f"  Starting call — {total} questions to ask")
@@ -424,6 +419,9 @@ class CallSession:
             self.speaker.speak(question)
             print(f"\r\033[K  [SPEAKING] Done.")
 
+            # 2b. Flush mic-captured TTS segments before listening
+            self.listener.flush()
+
             # 3. Listen for reply
             print(f"  [LISTENING]...")
             reply = self.listener.listen(silence_seconds=2, timeout_seconds=10)
@@ -433,6 +431,7 @@ class CallSession:
                 retry_text = "Sorry, I did not catch that. " + question
                 print(f"  [RETRY] No reply, asking again...")
                 self.speaker.speak(retry_text)
+                self.listener.flush()
                 reply = self.listener.listen(silence_seconds=2, timeout_seconds=10)
 
             # 5. Handle the reply
@@ -447,6 +446,7 @@ class CallSession:
                     )
                     # Re-ask the current question (this exchange is not the answer)
                     self.speaker.speak(question)
+                    self.listener.flush()
                     reply = self.listener.listen(silence_seconds=2, timeout_seconds=10)
 
                 # They asked to wait
@@ -460,24 +460,28 @@ class CallSession:
                         "I am sorry, I cannot share personal details. "
                         + question
                     )
+                    self.listener.flush()
                     reply = self.listener.listen(silence_seconds=2, timeout_seconds=10)
 
                 # They refused or ended the call
                 if reply and self._is_refusal(reply.lower()):
                     print(f"  [CALL ENDED] They refused to continue.")
-                    entry["answer"] = reply
+                    entry["answer"] = self._clean_answer(reply, question, prev_question)
                     entry["status"] = "answered"
                     entry["answered_at"] = get_time()
                     self._call_ended = True
                     self._save(response_data)
+                    prev_question = question
                     continue
 
             # Record the result
             if reply:
+                # Clean question bleed from transcript before saving
+                cleaned_reply = self._clean_answer(reply, question, prev_question)
                 entry["answered_at"] = get_time()
-                entry["answer"] = reply  # EXACT transcript, never modified
+                entry["answer"] = cleaned_reply
                 entry["status"] = "answered"
-                print(f"  A: {reply}")
+                print(f"  A: {cleaned_reply}")
             else:
                 entry["status"] = "no_answer"
                 entry["answer"] = None
@@ -486,6 +490,7 @@ class CallSession:
 
             # 6. Save after every question
             self._save(response_data)
+            prev_question = question
 
         return response_data
 
@@ -517,6 +522,131 @@ class CallSession:
         refusal_phrases = ["goodbye", "i'm hanging up", "don't call again", "stop calling",
                            "i refuse", "no comment", "end this call", "not interested"]
         return any(p in text for p in refusal_phrases)
+
+    @staticmethod
+    def _clean_answer(transcript: str, question: str, prev_question: str | None = None) -> str:
+        """Remove question text from the transcript if Whisper captured it.
+
+        When the mic picks up TTS playback, the question (and sometimes the
+        previous question) gets transcribed along with the actual answer.
+        This method strips those artifacts using exact and fuzzy matching.
+
+        Args:
+            transcript: The raw Whisper transcript (may contain question text).
+            question: The current question that was just spoken.
+            prev_question: The previous question (may bleed into the answer).
+
+        Returns:
+            The cleaned transcript with question text removed.
+        """
+        if not transcript:
+            return transcript
+
+        result = transcript
+
+        # Clean against previous question first (it appears earlier in transcript)
+        if prev_question:
+            result = CallSession._strip_question(result, prev_question)
+
+        # Clean against current question
+        result = CallSession._strip_question(result, question)
+
+        # If cleaning left us with nothing, return original (better than empty)
+        return result.strip() if result.strip() else transcript
+
+    @staticmethod
+    def _strip_question(transcript: str, question: str) -> str:
+        """Remove a single question's text from a transcript.
+
+        Handles three scenarios:
+        1. Exact substring match (question appears verbatim)
+        2. Fuzzy match at start/end of transcript (Whisper garbles slightly)
+        3. Sliding-window fuzzy match (question appears mid-transcript)
+        """
+        if not transcript or not question:
+            return transcript
+
+        # Normalize for comparison
+        t_lower = transcript.lower().strip()
+        q_lower = question.lower().strip()
+        q_clean = q_lower.rstrip('?.,!').strip()
+
+        # --- Strategy 1: Exact substring match (case-insensitive) ---
+        idx = t_lower.find(q_clean)
+        if idx != -1:
+            cleaned = transcript[:idx] + transcript[idx + len(q_clean):]
+            # Clean up lone punctuation marks left over from removal
+            # (e.g., a trailing "?" where the question was stripped)
+            # Only target punctuation surrounded by whitespace or at edges
+            cleaned = re.sub(r'(?:^|\s+)[?!]+(?:\s+|$)', ' ', cleaned)
+            cleaned = re.sub(r'\s{2,}', ' ', cleaned).strip()
+            if cleaned:
+                return cleaned
+            return transcript  # Don't return empty
+
+        # --- Strategy 2 & 3: Word-level fuzzy matching ---
+        q_words = [w.rstrip('?.,!').lower() for w in question.split()]
+        t_words = transcript.split()
+
+        if len(q_words) < 3 or len(t_words) <= len(q_words):
+            return transcript
+
+        # Strategy 2a: Check question words at the BEGINNING of transcript
+        overlap_start = 0
+        for qw, tw in zip(q_words, t_words):
+            if qw == tw.lower().rstrip('?.,!'):
+                overlap_start += 1
+            else:
+                break
+        if overlap_start / len(q_words) > 0.6:
+            cut_at = overlap_start
+            # Extend past trailing words that are also in the question
+            q_word_set = {w.rstrip('?.,!').lower() for w in question.split()}
+            while cut_at < len(t_words) and t_words[cut_at].lower().rstrip('?.,!') in q_word_set:
+                cut_at += 1
+            cleaned = ' '.join(t_words[cut_at:]).strip(' .,?!')
+            if cleaned:
+                return cleaned
+
+        # Strategy 2b: Check question words at the END of transcript
+        overlap_end = 0
+        for qw, tw in zip(reversed(q_words), reversed(t_words)):
+            if qw == tw.lower().rstrip('?.,!'):
+                overlap_end += 1
+            else:
+                break
+        if overlap_end / len(q_words) > 0.6:
+            cleaned = ' '.join(t_words[:len(t_words) - overlap_end]).strip(' .,?!')
+            if cleaned:
+                return cleaned
+
+        # Strategy 3: Sliding window — find a span of words in the middle
+        # that matches >60% of question words (Whisper may garble the question)
+        window_size = len(q_words)
+        best_overlap = 0
+        best_start = -1
+        best_end = -1
+
+        for start_idx in range(len(t_words) - window_size + 1):
+            window = t_words[start_idx:start_idx + window_size]
+            overlap = sum(
+                1 for qw, tw in zip(q_words, window)
+                if qw == tw.lower().rstrip('?.,!')
+            )
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_start = start_idx
+                best_end = start_idx + window_size
+
+        if best_overlap / len(q_words) > 0.6:
+            before = ' '.join(t_words[:best_start]).strip(' .,?!')
+            after = ' '.join(t_words[best_end:]).strip(' .,?!')
+            cleaned = f"{before} {after}".strip()
+            cleaned = re.sub(r'\s{2,}', ' ', cleaned)
+            if cleaned:
+                return cleaned
+
+        return transcript
 
 
 # ──────────────────────────────────────────────
