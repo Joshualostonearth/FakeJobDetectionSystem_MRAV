@@ -1,7 +1,7 @@
 import os
 from ocr_engine import init_ocr_reader, extract_text_from_image
 from models import extract_entities_from_text
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from engines.credibility_engine import Run_Objective_2_Filter
 

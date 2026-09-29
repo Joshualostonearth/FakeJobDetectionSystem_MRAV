@@ -9,10 +9,22 @@ Provides reusable building blocks:
 """
 
 import asyncio
+import glob
 import io
+import os
+import shutil
 import sys
 import threading
 import time
+
+# Ensure FFmpeg/FFprobe binaries are located and added to PATH automatically
+if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+    local_app_data = os.environ.get("LOCALAPPDATA", "")
+    if local_app_data:
+        matches = glob.glob(os.path.join(local_app_data, "Microsoft", "WinGet", "Packages", "*FFmpeg*", "**", "ffmpeg.exe"), recursive=True)
+        if matches:
+            bin_dir = os.path.dirname(matches[0])
+            os.environ["PATH"] = bin_dir + os.path.pathsep + os.environ["PATH"]
 
 import edge_tts
 import numpy as np
@@ -25,7 +37,7 @@ from whisper_live.client import TranscriptionClient
 # Configuration defaults
 # ──────────────────────────────────────────────
 
-WHISPER_HOST = "localhost"
+WHISPER_HOST = "127.0.0.1"
 WHISPER_PORT = 9090
 WHISPER_MODEL = "small"
 WHISPER_LANG = "en"

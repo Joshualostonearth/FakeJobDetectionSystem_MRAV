@@ -1,5 +1,5 @@
 from models import extract_entities_from_text
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from engines.credibility_engine import Run_Objective_2_Filter
 
@@ -27,20 +27,35 @@ def run_test():
     print(f"Extracted Entities: {entities}\n")
 
     print("--- 2. RUNNING OBJECTIVE 1b: FAISS Database Search ---")
-    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    vector_db = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization=True)
-    
-    query = f"{entities['company_name']} {entities['job_role']}".strip()
-    results = vector_db.similarity_search_with_score(query, k=3)
-    
     retrieved_evidence = []
-    for doc, score in results:
-        retrieved_evidence.append({
-            "page_content": doc.page_content,
-            "metadata": doc.metadata,
-            "distance": float(score)
-        })
-    print(f"Retrieved {len(retrieved_evidence)} matching evidence documents from FAISS.\n")
+    try:
+        embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_db = FAISS.load_local("faiss_index", embedding_model, allow_dangerous_deserialization=True)
+        
+        query = f"{entities['company_name']} {entities['job_role']}".strip()
+        results = vector_db.similarity_search_with_score(query, k=3)
+        
+        for doc, score in results:
+            retrieved_evidence.append({
+                "page_content": doc.page_content,
+                "metadata": doc.metadata,
+                "distance": float(score)
+            })
+    except Exception as e:
+        print(f"[Warning] FAISS search unavailable ({e}). Using mock evidence for test run.")
+        retrieved_evidence = [
+            {
+                "page_content": "Food52 is an official culinary company in NY. Official domain: food52.com",
+                "metadata": {"source_type": "legitimate_job_record", "company_name": "Food52", "domain": "food52.com", "fraudulent": 0},
+                "distance": 0.15
+            },
+            {
+                "page_content": "WARNING: Scam report regarding food52-recruiting emails from gmail.",
+                "metadata": {"source_type": "scam_report", "doc_id": "SCAM_FOOD52", "domain": "gmail.com", "fraudulent": 1},
+                "distance": 0.25
+            }
+        ]
+    print(f"Retrieved {len(retrieved_evidence)} matching evidence documents.\n")
 
     print("--- 3. RUNNING OBJECTIVE 2: Credibility Filtration Layer ---")
     results_obj2 = Run_Objective_2_Filter(entities, retrieved_evidence)

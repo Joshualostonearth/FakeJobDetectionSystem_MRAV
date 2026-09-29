@@ -27,12 +27,12 @@ from voice_tools import EdgeTTSSpeaker, OllamaChat
 # Configuration
 # ──────────────────────────────────────────────
 
-WHISPER_HOST = "localhost"
+WHISPER_HOST = "127.0.0.1"
 WHISPER_PORT = 9090
 WHISPER_MODEL = "small"
 WHISPER_LANG = "en"
 
-OLLAMA_MODEL = "ministral-3:latest"
+OLLAMA_MODEL = "qwen3-vl:latest"
 SYSTEM_PROMPT = (
     "You are a helpful voice assistant. Keep your responses concise and conversational "
     "since they will be spoken aloud. Avoid using markdown, bullet points, numbered lists, "

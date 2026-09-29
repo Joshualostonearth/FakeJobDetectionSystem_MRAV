@@ -131,7 +131,7 @@ def _generate_flags(
         flags.append(
             CredibilityFlag(
                 severity="CRITICAL",
-                message=f"High-risk SCAM pattern detected from EMSCAD records (doc: {doc.doc_id})",
+                message=f"Scam report detected from EMSCAD records (doc: {doc.doc_id})",
             )
         )
 

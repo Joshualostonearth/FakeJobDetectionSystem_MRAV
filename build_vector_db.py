@@ -1,7 +1,7 @@
 import json
 import os
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 def build_and_save_faiss_index(json_path: str, save_folder: str = "faiss_index"):

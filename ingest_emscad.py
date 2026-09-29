@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from bs4 import BeautifulSoup
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 def clean_html(raw_html: str) -> str:
