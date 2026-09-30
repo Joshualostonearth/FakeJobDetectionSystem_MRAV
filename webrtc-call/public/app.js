@@ -28,6 +28,17 @@ const btnStartSession = document.getElementById('btn-start-session');
 const inputFileSelect = document.getElementById('input-file');
 const questionsListEl = document.getElementById('questions-list');
 
+// Web Scraper controls
+const btnScrapeSite       = document.getElementById('btn-scrape-site');
+const scraperUrlInput     = document.getElementById('scraper-url-input');
+const scrapedResultsPanel = document.getElementById('scraped-results');
+const extractedPhoneInput = document.getElementById('extracted-phone');
+const extractedCompanyEl  = document.getElementById('extracted-company');
+const extractedEmailEl    = document.getElementById('extracted-email');
+const btnUseScrapedNumber = document.getElementById('btn-use-scraped-number');
+const targetPhoneDisplay  = document.getElementById('target-phone-display');
+const scraperStatusBadge  = document.getElementById('scraper-status-badge');
+
 // Transcript / Agent panel
 const transcriptEl = document.getElementById('transcript-text');
 const agentEl      = document.getElementById('agent-text');
@@ -41,6 +52,9 @@ let localStream;
 let peerConnection;
 let incomingOffer  = null;
 let remoteStream   = null;
+
+// Scraped target data state
+let activeScrapedData = null;
 
 // STUN server configuration for NAT traversal (unchanged)
 const iceServers = {
@@ -429,12 +443,34 @@ async function startVerificationSession() {
     updateAIStatus('Starting session...', '#f0a500');
     
     try {
-        // Fetch the local JSON file (input data with company info + suspicion reasons)
-        const fileName = inputFileSelect.value;
-        const resJson = await fetch(`/${fileName}.json`);
-        const inputData = await resJson.json();
+        let inputData;
         
-        // Step 1: Create the session (generates questions via Ministral)
+        // If web scraper has extracted target company details and phone number, use them!
+        if (activeScrapedData && activeScrapedData.company_name) {
+            const scrapedPhone = (extractedPhoneInput && extractedPhoneInput.value.trim()) || activeScrapedData.primary_phone;
+            console.log(`[Session] Starting session with web scraped payload: ${activeScrapedData.company_name} (${scrapedPhone})`);
+            inputData = {
+                company_name: activeScrapedData.company_name,
+                job_title: "Verified Position",
+                job_type: "full-time",
+                offer_details: {
+                    salary: "Competitive Market Rate",
+                    contact_phone: scrapedPhone,
+                    contact_email: (activeScrapedData.emails && activeScrapedData.emails.length > 0) ? activeScrapedData.emails[0] : "hr@company.com"
+                },
+                suspicion_reasons: [
+                    { id: "R1", reason: `Direct phone verification with web scraped number ${scrapedPhone}` },
+                    { id: "R2", reason: "AI voice verification session for scraped company profile" }
+                ]
+            };
+        } else {
+            // Fetch selected local JSON file
+            const fileName = inputFileSelect.value;
+            const resJson = await fetch(`/${fileName}.json`);
+            inputData = await resJson.json();
+        }
+        
+        // Step 1: Create the session (generates questions via LLM)
         const res = await fetch('/api/start-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -454,12 +490,9 @@ async function startVerificationSession() {
         const speakData = await speakRes.json();
         
         if (speakData.success && speakData.tts_audio_b64) {
-            // The server already emits 'agent-response' via Socket.IO,
-            // which triggers TTS playback and then autoRecordLoop via onTTSComplete.
             updateAgentPanel(speakData.agent_text);
             updateAIStatus('AI speaking Q1...', '#2ecc71');
         } else {
-            // Fallback: no TTS, just start listening
             console.warn('[Session] speak-first returned no audio, starting listen loop.');
             autoRecordLoop();
         }
@@ -469,6 +502,83 @@ async function startVerificationSession() {
         updateAIStatus('Failed to start session: ' + err.message, 'red');
         btnStartSession.disabled = false;
     }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 7. WEB SCRAPER & CONTACT EXTRACTOR HANDLERS
+// ═════════════════════════════════════════════════════════════════════════════
+
+async function scrapeTargetWebsite() {
+    const url = scraperUrlInput ? scraperUrlInput.value.trim() : '';
+    if (!url) {
+        alert('Please enter a target website or job posting URL to scrape.');
+        return;
+    }
+
+    if (btnScrapeSite) btnScrapeSite.disabled = true;
+    if (scraperStatusBadge) {
+        scraperStatusBadge.textContent = 'Scraping...';
+        scraperStatusBadge.style.color = '#f59e0b';
+    }
+
+    try {
+        console.log(`[Scraper UI] Scraping URL: ${url}`);
+        const response = await fetch('/api/scrape-number', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Scraping failed');
+        }
+
+        activeScrapedData = data;
+        console.log('[Scraper UI] Extraction complete:', data);
+
+        if (scrapedResultsPanel) scrapedResultsPanel.style.display = 'block';
+        if (extractedPhoneInput) extractedPhoneInput.value = data.primary_phone || '';
+        if (extractedCompanyEl)  extractedCompanyEl.textContent = data.company_name || 'Extracted Company';
+        if (extractedEmailEl)    extractedEmailEl.textContent = (data.emails && data.emails.length > 0) ? data.emails[0] : 'N/A';
+
+        if (scraperStatusBadge) {
+            scraperStatusBadge.textContent = 'Extracted ✓';
+            scraperStatusBadge.style.color = '#22c55e';
+        }
+
+        // Auto apply scraped phone number to voice agent target
+        useScrapedNumberInAgent();
+
+    } catch (err) {
+        console.error('[Scraper UI] Error scraping URL:', err);
+        alert('Web scraping failed: ' + err.message);
+        if (scraperStatusBadge) {
+            scraperStatusBadge.textContent = 'Error';
+            scraperStatusBadge.style.color = '#ef4444';
+        }
+    } finally {
+        if (btnScrapeSite) btnScrapeSite.disabled = false;
+    }
+}
+
+function useScrapedNumberInAgent() {
+    const phone = extractedPhoneInput ? extractedPhoneInput.value.trim() : '';
+    const company = activeScrapedData ? activeScrapedData.company_name : 'Scraped Company';
+
+    if (!phone) {
+        alert('No phone number extracted to use.');
+        return;
+    }
+
+    if (targetPhoneDisplay) {
+        targetPhoneDisplay.textContent = `📞 ${phone} (${company})`;
+        targetPhoneDisplay.style.color = '#22c55e';
+        targetPhoneDisplay.style.fontWeight = 'bold';
+    }
+
+    updateStatus(callStatusEl, `Target phone set to ${phone}. Ready to call.`);
+    console.log(`[Voice Agent] Target phone number set from web scraper: ${phone} (${company})`);
 }
 
 function autoRecordLoop() {
@@ -576,4 +686,12 @@ btnTestTTS.addEventListener('click', testTTS);
 
 if (btnStartSession) {
     btnStartSession.addEventListener('click', startVerificationSession);
+}
+
+if (btnScrapeSite) {
+    btnScrapeSite.addEventListener('click', scrapeTargetWebsite);
+}
+
+if (btnUseScrapedNumber) {
+    btnUseScrapedNumber.addEventListener('click', useScrapedNumberInAgent);
 }

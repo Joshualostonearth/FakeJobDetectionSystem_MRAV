@@ -33,6 +33,7 @@ from flask import Flask, request, jsonify, Response
 
 # Import from our existing modules
 from voice_tools import EdgeTTSFile, WhisperFileTranscriber
+from scraper_service import scrape_website_for_contact
 from caller import (
     QuestionGenerator,
     WebRTCCallSession,
@@ -75,6 +76,27 @@ def _get_stt() -> WhisperFileTranscriber:
         _stt = WhisperFileTranscriber()
         print("[Bridge] WhisperFileTranscriber initialised.")
     return _stt
+
+
+# ──────────────────────────────────────────────
+# POST /bridge/scrape-url
+# ──────────────────────────────────────────────
+
+@app.route("/bridge/scrape-url", methods=["POST"])
+def scrape_url():
+    """Scrape web page to extract company details and contact phone numbers."""
+    try:
+        data = request.get_json() or {}
+        url = data.get("url", "").strip()
+        if not url:
+            return jsonify({"success": False, "error": "No URL provided"}), 400
+
+        print(f"\n[Bridge] === Scraping URL for contact number: {url} ===")
+        result = scrape_website_for_contact(url)
+        return jsonify(result)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ──────────────────────────────────────────────

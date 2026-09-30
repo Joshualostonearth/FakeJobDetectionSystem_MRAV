@@ -27,34 +27,79 @@
             <div class="badge" id="audio-mode">Mode: Human</div>
         </header>
 
-        <main class="main-grid">
-
-            <!-- ── Left column: Connection ──────────────────────────────── -->
-            <section class="card" id="card-connection">
-                <h2 class="card-title">Connection</h2>
-
-                <div class="status-list">
-                    <div class="status-row">
-                        <span class="status-label">Microphone</span>
-                        <span class="status-value" id="mic-status">Not requested</span>
+            <!-- ── Left column: Connection & Web Scraper ────────────────── -->
+            <div class="left-column">
+                
+                <!-- ── 1. Web Scraper Card ────────────────────────────────────── -->
+                <section class="card" id="card-scraper">
+                    <div class="card-header-flex">
+                        <h2 class="card-title">🌐 Web Scraper &amp; Contact Extractor</h2>
+                        <span class="badge badge-accent" id="scraper-status-badge">Ready</span>
                     </div>
-                    <div class="status-row">
-                        <span class="status-label">Signaling</span>
-                        <span class="status-value" id="signaling-status">Disconnected</span>
-                    </div>
-                    <div class="status-row">
-                        <span class="status-label">Call State</span>
-                        <span class="status-value" id="call-status">Idle</span>
-                    </div>
-                </div>
 
-                <div class="controls-group">
-                    <button id="btn-join" class="btn btn-primary">Join Room</button>
-                    <button id="btn-call" class="btn btn-success" disabled>Call</button>
-                    <button id="btn-accept" class="btn btn-warning" style="display:none;">Accept Call</button>
-                    <button id="btn-hangup" class="btn btn-danger" disabled>Hang Up</button>
-                </div>
-            </section>
+                    <div class="scraper-input-group">
+                        <label for="scraper-url-input">Target Website / Job Posting URL:</label>
+                        <div class="input-with-button">
+                            <input type="url" id="scraper-url-input" class="text-input" placeholder="e.g. https://www.google.com/about/careers/applications/" value="https://www.google.com/about/careers/applications/">
+                            <button id="btn-scrape-site" class="btn btn-primary">🔍 Scrape Site</button>
+                        </div>
+                    </div>
+
+                    <div class="scraped-results-panel" id="scraped-results" style="display: none;">
+                        <div class="scraped-header">
+                            <span class="scraped-label">Extracted Contact Details</span>
+                        </div>
+                        <div class="scraped-details-grid">
+                            <div class="scraped-row highlight-row">
+                                <span class="detail-label">📞 Primary Phone:</span>
+                                <input type="text" id="extracted-phone" class="text-input phone-input" placeholder="No number found">
+                            </div>
+                            <div class="scraped-row">
+                                <span class="detail-label">🏢 Company Name:</span>
+                                <span class="detail-value" id="extracted-company">--</span>
+                            </div>
+                            <div class="scraped-row">
+                                <span class="detail-label">✉️ Email Contact:</span>
+                                <span class="detail-value" id="extracted-email">--</span>
+                            </div>
+                        </div>
+                        <div class="controls-group" style="margin-top: 12px;">
+                            <button id="btn-use-scraped-number" class="btn btn-success">⚡ Use Scraped Number in Voice Agent</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ── 2. Connection Card ────────────────────────────────────── -->
+                <section class="card" id="card-connection">
+                    <h2 class="card-title">Connection &amp; Dialing</h2>
+
+                    <div class="status-list">
+                        <div class="status-row highlight-phone">
+                            <span class="status-label">Target Phone Number</span>
+                            <span class="status-value phone-badge" id="target-phone-display">Not Set (Scrape to load)</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="status-label">Microphone</span>
+                            <span class="status-value" id="mic-status">Not requested</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="status-label">Signaling</span>
+                            <span class="status-value" id="signaling-status">Disconnected</span>
+                        </div>
+                        <div class="status-row">
+                            <span class="status-label">Call State</span>
+                            <span class="status-value" id="call-status">Idle</span>
+                        </div>
+                    </div>
+
+                    <div class="controls-group">
+                        <button id="btn-join" class="btn btn-primary">Join Room</button>
+                        <button id="btn-call" class="btn btn-success" disabled>Call Target</button>
+                        <button id="btn-accept" class="btn btn-warning" style="display:none;">Accept Call</button>
+                        <button id="btn-hangup" class="btn btn-danger" disabled>Hang Up</button>
+                    </div>
+                </section>
+            </div>
 
             <!-- ── Right column: Verification Session & AI ────────────────── -->
             <div class="right-column">
