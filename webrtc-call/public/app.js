@@ -155,6 +155,9 @@ function connectSignaling() {
         updateStatus(callStatusEl, 'Incoming call...');
         btnCall.style.display   = 'none';
         btnAccept.style.display = 'block';
+        
+        // Start playing the ringing sound
+        startRinging();
     });
 
     // Handle incoming answer (unchanged)
@@ -321,6 +324,7 @@ async function startCall() {
 }
 
 async function acceptCall() {
+    stopRinging();
     btnAccept.style.display = 'none';
     btnCall.style.display   = 'block';
     btnCall.disabled        = true;
@@ -341,6 +345,8 @@ async function acceptCall() {
 }
 
 function cleanupCall(reason) {
+    stopRinging();
+
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -552,6 +558,62 @@ function updateAgentPanel(text) {
         p.textContent = `> ${text}`;
         agentEl.appendChild(p);
         agentEl.scrollTop = agentEl.scrollHeight;
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RINGTONE LOGIC
+// ═════════════════════════════════════════════════════════════════════════════
+
+let ringtoneInterval;
+let ringtoneAudioCtx;
+
+function startRinging() {
+    if (ringtoneAudioCtx) return; // already ringing
+    
+    // Create audio context only when needed
+    ringtoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playRingBeep() {
+        if (!ringtoneAudioCtx || ringtoneAudioCtx.state === 'closed') return;
+        
+        const osc1 = ringtoneAudioCtx.createOscillator();
+        const osc2 = ringtoneAudioCtx.createOscillator();
+        const gainNode = ringtoneAudioCtx.createGain();
+        
+        // Classic US/UK dual-tone ring frequencies
+        osc1.frequency.value = 440;
+        osc2.frequency.value = 480;
+        
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ringtoneAudioCtx.destination);
+        
+        const now = ringtoneAudioCtx.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Fade in
+        gainNode.gain.setValueAtTime(0.3, now + 1.95);
+        gainNode.gain.linearRampToValueAtTime(0, now + 2.0);    // Fade out
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 2.0);
+        osc2.stop(now + 2.0);
+    }
+    
+    // Play immediately, then repeat every 4 seconds (2s ring, 2s silence)
+    playRingBeep();
+    ringtoneInterval = setInterval(playRingBeep, 4000);
+}
+
+function stopRinging() {
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+    if (ringtoneAudioCtx) {
+        ringtoneAudioCtx.close();
+        ringtoneAudioCtx = null;
     }
 }
 

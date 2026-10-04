@@ -23,7 +23,7 @@ smart_scraper_graph = SmartScraperGraph(
     source="https://www.google.com/about/careers/applications/",
     config=graph_config
 )
-#Scraping is based on prompt given (we gave the prompt)
+#Scraping is based on prompt given 
 # Run the local graph execution
 result = smart_scraper_graph.run()
 print("\n--- EXTRACTED JSON OUTPUT ---")

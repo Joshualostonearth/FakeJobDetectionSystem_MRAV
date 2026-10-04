@@ -21,17 +21,16 @@ def extract_entities_from_text(text: str) -> JobOfferEntities:
         
         # 🟢 UPGRADED STRICT PROMPT FOR LLAMA 3.2
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a strict data extraction assistant. Parse the provided text and extract all job details into JSON format.
+            ("system", """You are a strict entity extraction assistant.
 
-RULES:
-1. 'company_name': Extract the exact organization or company name (e.g. 'Food52', 'Richmond College'). DO NOT leave this blank if a company name is mentioned.
-2. 'job_role': Extract the job title (e.g. 'Marketing Intern').
-3. 'recruiter_email': Extract any email address present in the text (e.g. 'recruiting-food52@gmail.com').
-4. 'domain_or_website': Extract any website domain mentioned (e.g. 'food52.com').
-5. 'location': Extract any city/state/country mentioned.
-
-Extract every single field carefully from the text below."""),
-            ("human", "{text}")
+Rules:
+1. 'company_name': ALWAYS check the top header or letterhead (e.g., 'Richmond College'). Do not return empty if an organization header exists at the top.
+2. 'job_role': Check the body or sign-off line (e.g., 'Administrative Officer').
+3. 'recruiter_email': Extract the contact email address.
+4. 'domain_or_website': Extract domain from email or body text.
+5. 'location': Extract city, state, zip code.
+"""),
+            ("human", "Extract job offer entities from this text:\n\n{text}")
         ])
         
         extraction_chain = prompt | structured_llm

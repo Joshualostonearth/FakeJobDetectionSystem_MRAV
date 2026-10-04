@@ -1,0 +1,33 @@
+# ============================================================
+# voice_agent_config.yaml
+# All non-secret configuration for Objective 3.
+# API keys must NEVER appear here — they live in .env only.
+# ============================================================
+
+# --- Server ---
+use_ngrok: true
+server_port: 8765
+public_base_url: ""           # auto-set at runtime by Ngrok or manual deploy URL
+
+# --- Voice Selection ---
+voice_india: "en-IN-NeerjaNeural"
+voice_us: "en-US-AriaNeural"
+voice_uk: "en-GB-SoniaNeural"
+voice_fallback: "en-US-JennyNeural"
+
+# --- Whisper ---
+whisper_model_size: "base"
+whisper_device: "cpu"
+whisper_compute_type: "int8"
+
+# --- LLM ---
+ollama_model: "llama3.2"
+
+# --- Timeouts (seconds) ---
+call_ring_timeout: 30
+call_max_duration: 120
+recording_timeout: 90
+
+# --- Number sourcing ---
+number_source_min_confidence: 0.6
+top_k_number_sources: 1       # only use the highest-confidence number found

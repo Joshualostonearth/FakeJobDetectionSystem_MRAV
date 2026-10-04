@@ -1,5 +1,4 @@
 import tldextract
-
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
@@ -36,21 +35,30 @@ def evaluate_mrav_consistency(entities: dict, retrieved_evidence: list) -> dict:
     Uses local Ollama (Llama 3.2) to evaluate semantic consistency 
     between extracted job claims and FAISS evidence documents.
     """
-    # Initialize local Ollama
     llm = ChatOllama(model="llama3.2", temperature=0)
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a Credibility Filtration Agent for a job scam detection system.
 Compare the user's JOB CLAIM against the RETRIEVED EVIDENCE from our database.
 
-Determine if the offer is CONSISTENT, SUSPICIOUS, or FRAUDULENT.
-Output ONLY a 2-line summary in this format:
+CRITICAL JUDGMENT RULES:
+1. SEMANTIC TITLE EQUIVALENCE: Treat minor job title variations as CONSISTENT (e.g., 'Senior Software Engineer (Backend)' IS EQUIVALENT to 'Software Engineer Backend').
+2. DOMAIN & LOCATION MISMATCH: Flag as SUSPICIOUS or FRAUDULENT if:
+   - The company name is missing or blank.
+   - The location listed (e.g., California) conflicts with the known location/entity of the domain (e.g., richmond.edu belongs to University of Richmond in Virginia, NOT Richmond, CA).
+3. VERDICT DEFINITIONS:
+   - LEGITIMATE: Company, role, location, and domain align cleanly with evidence.
+   - SUSPICIOUS: Major structural mismatch, geographic/domain conflict, or missing company context.
+   - FRAUDULENT: Outright scam patterns, check/wire transfer requests, or verified malicious database matches.
+
+Output ONLY a 2-line summary in this exact format:
 VERDICT: [LEGITIMATE / SUSPICIOUS / FRAUDULENT]
-REASON: [1 concise sentence explaining your reasoning based on discrepancies or scam matches]"""),
+REASON: [1 concise sentence explaining your reasoning]"""),
         ("human", """JOB CLAIM:
 Company: {company}
 Role: {role}
 Domain: {domain}
+Location: {location}
 
 RETRIEVED FAISS EVIDENCE:
 {evidence}""")
@@ -68,6 +76,7 @@ RETRIEVED FAISS EVIDENCE:
             "company": entities.get("company_name", ""),
             "role": entities.get("job_role", ""),
             "domain": entities.get("domain_or_website", ""),
+            "location": entities.get("location", ""),
             "evidence": evidence_text
         })
         return {"mrav_analysis": response.content.strip()}
@@ -79,17 +88,21 @@ RETRIEVED FAISS EVIDENCE:
 
 def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
     flags = []
-    trust_score = 100.0 # Start at 100%
+    trust_score = 100.0  # Start at 100%
+
+    # Check 0: Missing Company Entity Check
+    if not entities.get("company_name", "").strip():
+        flags.append("WARNING: Company/Organization name could not be reliably extracted from document")
+        trust_score -= 15.0
 
     # Check 1: Free Email Provider
     if check_free_email(entities.get("recruiter_email", "")):
         flags.append("WARNING: Recruiter using free public email address (e.g. @gmail.com)")
         trust_score -= 25.0
 
-    # Check 2: FAISS Known Scam Match
-    has_scam_match = any(doc.get("metadata", {}).get("fraudulent") == 1 for doc in retrieved_evidence)
-    if has_scam_match:
-        flags.append("CRITICAL: Offer letter pattern matches known fraudulent job listings in FAISS database")
+    # Check 2: Top Match Known Scam Check
+    if retrieved_evidence and retrieved_evidence[0].get("metadata", {}).get("fraudulent") == 1:
+        flags.append("CRITICAL: Top similarity match in FAISS database is a known fraudulent listing")
         trust_score -= 50.0
 
     # Check 3: M-RAV Ollama Consistency Analysis

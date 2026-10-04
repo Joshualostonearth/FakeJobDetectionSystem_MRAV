@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Verification Agent — Objective 3</title>
+  <meta name="description" content="Live test-call dashboard for the Fake Job Detection System's Voice Verification Agent. Trigger a real Twilio call to verify job listing legitimacy." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- SIDEBAR                                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-icon">🔍</span>
+    <div>
+      <div class="logo-title">FakeJob<span class="logo-accent">Detect</span></div>
+      <div class="logo-sub">Detection System</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">PIPELINE</div>
+    <a href="#" class="nav-item active" id="nav-voice">
+      <span class="nav-icon">📞</span> Voice Agent
+    </a>
+    <a href="#" class="nav-item disabled">
+      <span class="nav-icon">🧠</span> Entity Extractor
+    </a>
+    <a href="#" class="nav-item disabled">
+      <span class="nav-icon">⚖️</span> Consensus Engine
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="status-pill" id="server-status">
+      <span class="dot dot-green"></span> Server Online
+    </div>
+    <div class="obj-badge">Objective 3</div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MAIN PANEL                                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<main class="main-panel">
+
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Voice Verification Agent</h1>
+      <p class="page-subtitle">Trigger a live Twilio call to verify job listing legitimacy in real time.</p>
+    </div>
+    <div class="header-badge">
+      <span class="badge-dot"></span> LangChain · Whisper · Ollama
+    </div>
+  </header>
+
+  <div class="content-grid">
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!-- LEFT COLUMN: Form + Log                        -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="left-col">
+
+      <!-- Test Call Form -->
+      <section class="card form-card" id="form-section">
+        <div class="card-header">
+          <h2 class="card-title">📋 Verification Details</h2>
+          <span class="card-hint">Fill in job listing details to verify</span>
+        </div>
+
+        <form id="test-call-form" autocomplete="off">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="company_name">Company Name <span class="required">*</span></label>
+              <input
+                type="text"
+                id="company_name"
+                name="company_name"
+                placeholder="e.g. Google LLC"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="role">Role Title <span class="required">*</span></label>
+              <input
+                type="text"
+                id="role"
+                name="role"
+                placeholder="e.g. Software Engineer Intern"
+                required
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="location">Location <span class="required">*</span></label>
+              <input
+                type="text"
+                id="location"
+                name="location"
+                placeholder="e.g. Bangalore, India"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="recruiter_name">Recruiter Name <span class="optional">(optional)</span></label>
+              <input
+                type="text"
+                id="recruiter_name"
+                name="recruiter_name"
+                placeholder="e.g. Priya Sharma"
+              />
+            </div>
+          </div>
+
+          <!-- Test Override Phone — Developer Use -->
+          <div class="form-group override-group">
+            <label for="override_phone">
+              📞 Your Mobile Number
+              <span class="dev-tag">DEV ONLY</span>
+            </label>
+            <input
+              type="tel"
+              id="override_phone"
+              name="override_phone"
+              placeholder="+91XXXXXXXXXX  or  +1XXXXXXXXXX"
+            />
+            <p class="field-hint">
+              Enter your own phone number to receive the test call (E.164 format).
+              Leave blank to automatically source the company's official number via API cascade.
+              <strong>For development use only.</strong>
+            </p>
+          </div>
+
+          <div class="form-actions" style="display: flex; gap: 10px;">
+            <button type="submit" id="submit-btn" class="btn-primary" style="flex: 1;">
+              <span class="btn-icon">📞</span>
+              <span id="btn-text">Call Me Now</span>
+            </button>
+            <button type="button" id="twilio-test-btn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #444, #222);">
+              <span class="btn-icon">☎️</span>
+              <span id="twilio-btn-text">Test Twilio Connection Only</span>
+            </button>
+          </div>
+
+        </form>
+      </section>
+
+      <!-- Live Log Console -->
+      <section class="card log-card" id="log-section" style="display:none;">
+        <div class="card-header">
+          <h2 class="card-title">🖥️ Live Pipeline Log</h2>
+          <span class="log-status" id="log-status">
+            <span class="pulse-dot"></span> Running
+          </span>
+        </div>
+        <pre class="log-console" id="log-console" aria-live="polite" aria-label="Pipeline log"></pre>
+      </section>
+
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!-- RIGHT COLUMN: Results                          -->
+    <!-- ─────────────────────────────────────────────── -->
+    <div class="right-col">
+
+      <!-- Idle placeholder -->
+      <div class="idle-placeholder" id="idle-placeholder">
+        <div class="idle-icon">📡</div>
+        <div class="idle-title">Awaiting Verification</div>
+        <div class="idle-sub">Fill in the form and click <strong>Call Me Now</strong> to begin.</div>
+        <div class="idle-steps">
+          <div class="idle-step"><span>1</span> Number sourced independently</div>
+          <div class="idle-step"><span>2</span> Script synthesised via edge-tts</div>
+          <div class="idle-step"><span>3</span> Twilio call placed to your number</div>
+          <div class="idle-step"><span>4</span> Recording downloaded and transcribed</div>
+          <div class="idle-step"><span>5</span> Signals extracted via LangChain + Ollama</div>
+          <div class="idle-step"><span>6</span> Results pushed to consensus engine</div>
+        </div>
+      </div>
+
+      <!-- Results panel (hidden until result arrives) -->
+      <div id="results-panel" style="display:none;">
+
+        <!-- Verdict cards -->
+        <section class="card verdict-card">
+          <div class="card-header">
+            <h2 class="card-title">🏁 Verdict</h2>
+            <span id="pipeline-status-badge" class="status-badge"></span>
+          </div>
+          <div class="verdict-grid" id="verdict-grid">
+            <!-- Injected by JS -->
+          </div>
+          <p class="response-summary" id="response-summary"></p>
+        </section>
+
+        <!-- Transcript -->
+        <section class="card">
+          <details id="transcript-details">
+            <summary class="details-summary">
+              🎙️ Full Transcript
+              <span class="details-count" id="transcript-word-count"></span>
+            </summary>
+            <p class="transcript-text" id="transcript-text"></p>
+          </details>
+        </section>
+
+        <!-- Raw JSON -->
+        <section class="card">
+          <details id="json-details">
+            <summary class="details-summary">
+              🔧 Raw Signal JSON
+            </summary>
+            <pre class="json-block" id="json-block"></pre>
+          </details>
+        </section>
+
+        <!-- Consensus handoff -->
+        <section class="card handoff-card">
+          <div class="handoff-label">Consensus Engine Handoff</div>
+          <div class="handoff-status" id="handoff-status"></div>
+        </section>
+
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+  const form = document.getElementById('test-call-form');
+  const submitBtn = document.getElementById('submit-btn');
+  const btnText = document.getElementById('btn-text');
+  const twilioBtn = document.getElementById('twilio-test-btn');
+  const twilioBtnText = document.getElementById('twilio-btn-text');
+  const logSection = document.getElementById('log-section');
+  const logConsole = document.getElementById('log-console');
+  const logStatus = document.getElementById('log-status');
+  const idlePlaceholder = document.getElementById('idle-placeholder');
+  const resultsPanel = document.getElementById('results-panel');
+
+  let evtSource = null;
+
+  // ── Twilio Only Test ──────────────────────────────────────
+  twilioBtn.addEventListener('click', async () => {
+    const overridePhone = document.getElementById('override_phone').value;
+    if (!overridePhone) {
+      alert("Please enter your mobile number in the DEV ONLY field first.");
+      return;
+    }
+
+    twilioBtn.disabled = true;
+    twilioBtnText.textContent = "Calling...";
+    
+    // Reset UI
+    resetResults();
+    logSection.style.display = 'block';
+    logConsole.textContent = '';
+    idlePlaceholder.style.display = 'none';
+    appendLog(`☎️ Sending ping test call to ${overridePhone}...`);
+
+    const formData = new FormData(form);
+
+    try {
+      const resp = await fetch('/test-twilio-only', { method: 'POST', body: formData });
+      const data = await resp.json();
+      
+      if (resp.ok) {
+        appendLog(`✅ ${data.message} (SID: ${data.call_sid})`);
+        appendLog("Wait for your phone to ring and answer it.");
+      } else {
+        appendLog(`❌ Twilio Error: ${data.message}`);
+      }
+    } catch (err) {
+      appendLog(`❌ Network Error: ${err.message}`);
+    } finally {
+      twilioBtn.disabled = false;
+      twilioBtnText.textContent = "Test Twilio Connection Only";
+    }
+  });
+
+  // ── Form submit ──────────────────────────────────────────
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Reset UI
+    resetResults();
+    setLoading(true);
+    logSection.style.display = 'block';
+    logConsole.textContent = '';
+    idlePlaceholder.style.display = 'none';
+    appendLog('🚀 Submitting job details to pipeline...');
+
+    const formData = new FormData(form);
+
+    try {
+      const resp = await fetch('/test-call', { method: 'POST', body: formData });
+      if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
+      const { call_id } = await resp.json();
+      appendLog(`📋 Call ID: ${call_id}`);
+      openSSEStream(call_id);
+    } catch (err) {
+      appendLog(`❌ Error: ${err.message}`);
+      setLoading(false);
+    }
+  });
+
+  // ── SSE stream ───────────────────────────────────────────
+  function openSSEStream(callId) {
+    if (evtSource) evtSource.close();
+
+    evtSource = new EventSource(`/stream/${callId}`);
+
+    evtSource.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'step') {
+        appendLog(msg.text);
+      }
+
+      if (msg.type === 'result') {
+        evtSource.close();
+        evtSource = null;
+        renderResults(msg.data);
+        setLoading(false);
+        logStatus.innerHTML = '<span style="color:var(--green)">✅ Complete</span>';
+      }
+
+      if (msg.type === 'error') {
+        evtSource.close();
+        evtSource = null;
+        appendLog(`❌ ${msg.text}`);
+        setLoading(false);
+        logStatus.innerHTML = '<span style="color:var(--red)">❌ Failed</span>';
+      }
+    };
+
+    evtSource.onerror = () => {
+      appendLog('⚠️ SSE connection lost. Retrying...');
+    };
+  }
+
+  // ── Log helpers ──────────────────────────────────────────
+  function appendLog(text) {
+    const ts = new Date().toLocaleTimeString();
+    logConsole.textContent += `[${ts}] ${text}\n`;
+    logConsole.scrollTop = logConsole.scrollHeight;
+  }
+
+  // ── Results renderer ─────────────────────────────────────
+  function renderResults(data) {
+    resultsPanel.style.display = 'block';
+
+    // Pipeline status badge
+    const badge = document.getElementById('pipeline-status-badge');
+    if (data.pipeline_completed) {
+      badge.textContent = '✅ Completed';
+      badge.className = 'status-badge badge-success';
+    } else if (data.skip_reason) {
+      badge.textContent = `⏭ Skipped: ${data.skip_reason}`;
+      badge.className = 'status-badge badge-warning';
+    } else if (data.error) {
+      badge.textContent = '❌ Error';
+      badge.className = 'status-badge badge-error';
+    }
+
+    // Verdict pills
+    const signals = data.voice_signals || {};
+    const verdictGrid = document.getElementById('verdict-grid');
+    verdictGrid.innerHTML = '';
+
+    const pills = [
+      { key: 'company_reached',      label: 'Company Reached',    icon: '📞' },
+      { key: 'role_actively_hiring', label: 'Role Actively Hiring', icon: '💼' },
+      { key: 'company_denied_role',  label: 'Role Denied',         icon: '🚫' },
+      { key: 'suspicious_response',  label: 'Suspicious Response', icon: '⚠️' },
+    ];
+
+    pills.forEach(({ key, label, icon }) => {
+      const val = signals[key];
+      let cls = 'pill-null';
+      let display = 'Unknown';
+      if (val === true)  { cls = key === 'company_denied_role' || key === 'suspicious_response' ? 'pill-danger' : 'pill-success'; display = 'Yes'; }
+      if (val === false) { cls = key === 'company_denied_role' || key === 'suspicious_response' ? 'pill-success' : 'pill-danger'; display = 'No'; }
+
+      verdictGrid.innerHTML += `
+        <div class="verdict-pill ${cls}">
+          <div class="pill-icon">${icon}</div>
+          <div class="pill-label">${label}</div>
+          <div class="pill-value">${display}</div>
+        </div>`;
+    });
+
+    // Response summary
+    const summaryEl = document.getElementById('response-summary');
+    summaryEl.textContent = signals.response_summary || data.error || 'No summary available.';
+
+    // Transcript
+    const transcript = data.transcript || '';
+    document.getElementById('transcript-text').textContent = transcript || '(No transcript)';
+    const wc = transcript.split(/\s+/).filter(Boolean).length;
+    document.getElementById('transcript-word-count').textContent = `${wc} words`;
+
+    // Raw JSON
+    document.getElementById('json-block').textContent = JSON.stringify(signals, null, 2);
+
+    // Consensus handoff
+    const handoff = document.getElementById('handoff-status');
+    const hasSignals = Object.keys(signals).length > 0;
+    handoff.innerHTML = hasSignals
+      ? '<span class="handoff-ok">✅ Signals pushed to consensus engine</span>'
+      : '<span class="handoff-warn">⚠️ Objective 2 offline — signals logged locally</span>';
+
+    // Scroll to results
+    resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── UI helpers ───────────────────────────────────────────
+  function setLoading(loading) {
+    submitBtn.disabled = loading;
+    if (loading) {
+      btnText.textContent = 'Calling...';
+      submitBtn.classList.add('btn-loading');
+    } else {
+      btnText.textContent = 'Call Me Now';
+      submitBtn.classList.remove('btn-loading');
+    }
+  }
+
+  function resetResults() {
+    resultsPanel.style.display = 'none';
+    document.getElementById('verdict-grid').innerHTML = '';
+    document.getElementById('response-summary').textContent = '';
+    document.getElementById('transcript-text').textContent = '';
+    document.getElementById('json-block').textContent = '';
+    document.getElementById('handoff-status').innerHTML = '';
+    document.getElementById('pipeline-status-badge').textContent = '';
+  }
+</script>
+
+</body>
+</html>
