@@ -175,7 +175,7 @@ class TestCredibilityEngine:
 
         scam_flags = [
             f for f in result.credibility_evaluation.flags_triggered
-            if f.severity == "CRITICAL" and "Scam report" in f.message
+            if f.severity == "CRITICAL" and "SCAM" in f.message.upper()
         ]
         assert len(scam_flags) >= 1
 

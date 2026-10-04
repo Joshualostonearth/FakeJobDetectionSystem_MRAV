@@ -136,6 +136,7 @@ def generate_alignment_triple(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=512,
+                timeout=1.5,
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
