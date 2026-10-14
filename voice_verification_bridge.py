@@ -182,7 +182,7 @@ def _run_voice_step(
                 voice_config = {
                     "ollama_model": os.getenv("OLLAMA_MODEL", "ministral-3"),
                     "server_port": 8765,
-                    "recording_timeout": 90,
+                    "recording_timeout": 600,
                 }
 
         # Generate a claim ID

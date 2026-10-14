@@ -28,4 +28,5 @@ ollama_model: "ministral-3"
 # --- Timeouts (seconds) ---
 call_ring_timeout: 30
 call_max_duration: 120
-recording_timeout: 90
+recording_timeout: 600           # whole call: 10 questions, each answered + processed by the LLM
+session_start_timeout: 300      # question generation on the local LLM

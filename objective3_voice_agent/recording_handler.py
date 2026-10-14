@@ -81,6 +81,16 @@ def wait_for_recording(
                 # Try to retrieve the final response file
                 return _retrieve_transcript(session_id, config)
 
+            active_id = status.get("session_id")
+            if active_id and active_id != session_id:
+                # Someone started a different session on the bridge (e.g. the
+                # WebRTC page's sample file), so ours will never complete.
+                logger.warning(
+                    f"[RecordingHandler] Session {session_id} was replaced by "
+                    f"{active_id}; giving up."
+                )
+                return None
+
             state = status.get("state", "unknown")
             q_idx = status.get("question_index", "?")
             total = status.get("total_questions", "?")

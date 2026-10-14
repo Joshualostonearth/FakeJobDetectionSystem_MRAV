@@ -186,22 +186,6 @@ body {
     flex-wrap: wrap;
 }
 
-.session-input label {
-    font-size: 13px;
-    color: #999;
-}
-
-.select-input {
-    padding: 6px 8px;
-    font-size: 13px;
-    border: 1px solid #3a3a3a;
-    border-radius: 4px;
-    flex: 1;
-    min-width: 180px;
-    background: #1a1a1a;
-    color: #e4e4e4;
-}
-
 .questions-list {
     font-size: 13px;
     color: #bbb;

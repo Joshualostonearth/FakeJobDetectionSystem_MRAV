@@ -410,6 +410,13 @@ def status():
         "bridge": "ok",
         "session_active": True,
         "session_id": _session_meta.get("session_id", ""),
+        "company": _session_meta.get("company", ""),
+        "job": _session_meta.get("job", ""),
+        # Lets the WebRTC page show a session started elsewhere (e.g. Streamlit)
+        "questions": [
+            {"id": r["id"], "purpose": r["purpose"]}
+            for r in _session.response_data["responses"]
+        ],
         **state,
     })
 

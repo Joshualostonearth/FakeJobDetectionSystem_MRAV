@@ -25,7 +25,6 @@ const btnTestTTS   = document.getElementById('btn-test-tts');
 
 // Session controls
 const btnStartSession = document.getElementById('btn-start-session');
-const inputFileSelect = document.getElementById('input-file');
 const questionsListEl = document.getElementById('questions-list');
 
 // Transcript / Agent panel
@@ -435,34 +434,39 @@ async function startVerificationSession() {
     updateAIStatus('Starting session...', '#f0a500');
     
     try {
-        // Fetch the local JSON file (input data with company info + suspicion reasons)
-        const fileName = inputFileSelect.value;
-        const resJson = await fetch(`/${fileName}.json`);
-        const inputData = await resJson.json();
-        
-        // Step 1: Create the session (generates questions via Ministral)
-        const res = await fetch('/api/start-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(inputData),
-        });
-        
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-        
+        // Step 1: Use the session the Streamlit app prepared for the analysed offer.
+        const statusRes = await fetch('/api/session-status');
+        const status = await statusRes.json();
+
+        if (!(status.session_active && status.state === 'active')) {
+            updateAIStatus('No session yet — analyse an offer in the app first, then click Start Session.', 'red');
+            btnStartSession.disabled = false;
+            return;
+        }
+
+        console.log(`[Session] Using session: ${status.session_id}`);
+        updateQuestionsPanel(status.questions || []);
+
+        if (status.question_index > 0) {
+            // Call already in progress (e.g. page reloaded) — keep listening
+            sessionActive = true;
+            audioManager.setMode('agent');
+            autoRecordLoop();
+            return;
+        }
+
         sessionActive = true;
-        updateQuestionsPanel(data.questions);
         audioManager.setMode('agent');
-        
+
         // Step 2: Speak the greeting + Q1 (generates TTS audio)
         updateAIStatus('AI introducing itself...', '#f0a500');
         const speakRes = await fetch('/api/speak-first', { method: 'POST' });
         const speakData = await speakRes.json();
-        
-        if (speakData.success && speakData.tts_audio_b64) {
+
+        if (speakData.success && speakData.ttsId) {
             // The server already emits 'agent-response' via Socket.IO,
             // which triggers TTS playback and then autoRecordLoop via onTTSComplete.
-            updateAgentPanel(speakData.agent_text);
+            updateAgentPanel(speakData.text);
             updateAIStatus('AI speaking Q1...', '#2ecc71');
         } else {
             // Fallback: no TTS, just start listening

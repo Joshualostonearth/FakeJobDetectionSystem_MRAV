@@ -30,10 +30,21 @@ def _bridge_url(config: dict) -> str:
     return config.get("webrtc_bridge_url", DEFAULT_BRIDGE_URL)
 
 
+def _bridge_reasons(reasons: list) -> list:
+    """Convert suspicion reasons to the bridge's [{"id": "R1", "reason": ...}] format."""
+    converted = []
+    for i, r in enumerate(reasons or [], 1):
+        if isinstance(r, dict) and "id" in r and "reason" in r:
+            converted.append(r)
+        else:
+            converted.append({"id": f"R{i}", "reason": str(r)})
+    return converted
+
+
 def initiate_verification_call(
     entity: dict,
     config: dict,
-    timeout: int = 30,
+    timeout: Optional[int] = None,
 ) -> dict:
     """
     Start a WebRTC verification session via the call bridge.
@@ -44,7 +55,9 @@ def initiate_verification_call(
     Args:
         entity:   Job offer entity dict — must have: company_name, role/job_role
         config:   voice_agent_config dict (webrtc_bridge_url, timeouts)
-        timeout:  HTTP request timeout in seconds
+        timeout:  HTTP request timeout in seconds. Question generation runs on
+                  the local LLM and can be slow, so the default comes from
+                  config["session_start_timeout"] (300s if unset).
 
     Returns:
         Bridge session response dict containing:
@@ -56,17 +69,20 @@ def initiate_verification_call(
     """
     bridge = _bridge_url(config)
     url = f"{bridge}/bridge/start-session"
+    if timeout is None:
+        timeout = config.get("session_start_timeout", 300)
 
-    # Map entity fields to bridge expected format
+    # Map entity fields to bridge expected format. The bridge rejects an empty
+    # company or job title, which scam offers often leave out.
     payload = {
-        "company_name": entity.get("company_name", ""),
-        "job_title": entity.get("role", "") or entity.get("job_role", ""),
+        "company_name": entity.get("company_name") or "Unknown company",
+        "job_title": entity.get("role") or entity.get("job_role") or "Unspecified role",
         "job_type": entity.get("job_type", "unknown"),
         "offer_details": {
             "location": entity.get("location", ""),
             "recruiter_name": entity.get("recruiter_name", ""),
         },
-        "suspicion_reasons": entity.get("suspicion_reasons", []),
+        "suspicion_reasons": _bridge_reasons(entity.get("suspicion_reasons", [])),
     }
 
     logger.info(f"[CallInitiator] Starting WebRTC session → {url}")
