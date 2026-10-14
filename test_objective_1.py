@@ -5,16 +5,14 @@ from models import extract_entities_from_text, JobOfferEntities
 from search_engine import EvidenceRetriever
 
 def run_pipeline(text: str, image_path: str, api_key: str):
-    # 1. OCR (if image provided)
+
     ocr_text = ""
     if image_path:
         reader = init_ocr_reader()
         ocr_text = extract_text_from_image(reader, image_path)
         
-    # 2. Merge Text
     merged_text = merge_text_and_ocr(text, ocr_text)
     
-    # 3. Extraction
     if api_key:
         entities = extract_entities_from_text(merged_text, api_key)
     else:
@@ -28,7 +26,7 @@ def run_pipeline(text: str, image_path: str, api_key: str):
             location="San Francisco"
         )
         
-    # 4. Retrieval
+    
     retriever = EvidenceRetriever()
     bundle = retriever.retrieve_evidence_bundle(entities, top_k=3)
     

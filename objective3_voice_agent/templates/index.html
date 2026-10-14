@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Voice Verification Agent — Objective 3</title>
-  <meta name="description" content="Live test-call dashboard for the Fake Job Detection System's Voice Verification Agent. Trigger a real Twilio call to verify job listing legitimacy." />
+  <meta name="description" content="Live test-call dashboard for the Fake Job Detection System's Voice Verification Agent. Trigger a real WebRTC call to verify job listing legitimacy." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
@@ -53,7 +53,7 @@
   <header class="page-header">
     <div>
       <h1 class="page-title">Voice Verification Agent</h1>
-      <p class="page-subtitle">Trigger a live Twilio call to verify job listing legitimacy in real time.</p>
+      <p class="page-subtitle">Trigger a live WebRTC call to verify job listing legitimacy in real time.</p>
     </div>
     <div class="header-badge">
       <span class="badge-dot"></span> LangChain · Whisper · Ollama
@@ -121,33 +121,10 @@
             </div>
           </div>
 
-          <!-- Test Override Phone — Developer Use -->
-          <div class="form-group override-group">
-            <label for="override_phone">
-              📞 Your Mobile Number
-              <span class="dev-tag">DEV ONLY</span>
-            </label>
-            <input
-              type="tel"
-              id="override_phone"
-              name="override_phone"
-              placeholder="+91XXXXXXXXXX  or  +1XXXXXXXXXX"
-            />
-            <p class="field-hint">
-              Enter your own phone number to receive the test call (E.164 format).
-              Leave blank to automatically source the company's official number via API cascade.
-              <strong>For development use only.</strong>
-            </p>
-          </div>
-
           <div class="form-actions" style="display: flex; gap: 10px;">
             <button type="submit" id="submit-btn" class="btn-primary" style="flex: 1;">
               <span class="btn-icon">📞</span>
               <span id="btn-text">Call Me Now</span>
-            </button>
-            <button type="button" id="twilio-test-btn" class="btn-primary" style="flex: 1; background: linear-gradient(135deg, #444, #222);">
-              <span class="btn-icon">☎️</span>
-              <span id="twilio-btn-text">Test Twilio Connection Only</span>
             </button>
           </div>
 
@@ -180,8 +157,8 @@
         <div class="idle-steps">
           <div class="idle-step"><span>1</span> Number sourced independently</div>
           <div class="idle-step"><span>2</span> Script synthesised via edge-tts</div>
-          <div class="idle-step"><span>3</span> Twilio call placed to your number</div>
-          <div class="idle-step"><span>4</span> Recording downloaded and transcribed</div>
+          <div class="idle-step"><span>3</span> WebRTC session initiated via bridge</div>
+          <div class="idle-step"><span>4</span> Call answered on WebRTC interface and transcribed</div>
           <div class="idle-step"><span>5</span> Signals extracted via LangChain + Ollama</div>
           <div class="idle-step"><span>6</span> Results pushed to consensus engine</div>
         </div>
@@ -242,8 +219,6 @@
   const form = document.getElementById('test-call-form');
   const submitBtn = document.getElementById('submit-btn');
   const btnText = document.getElementById('btn-text');
-  const twilioBtn = document.getElementById('twilio-test-btn');
-  const twilioBtnText = document.getElementById('twilio-btn-text');
   const logSection = document.getElementById('log-section');
   const logConsole = document.getElementById('log-console');
   const logStatus = document.getElementById('log-status');
@@ -252,43 +227,7 @@
 
   let evtSource = null;
 
-  // ── Twilio Only Test ──────────────────────────────────────
-  twilioBtn.addEventListener('click', async () => {
-    const overridePhone = document.getElementById('override_phone').value;
-    if (!overridePhone) {
-      alert("Please enter your mobile number in the DEV ONLY field first.");
-      return;
-    }
 
-    twilioBtn.disabled = true;
-    twilioBtnText.textContent = "Calling...";
-    
-    // Reset UI
-    resetResults();
-    logSection.style.display = 'block';
-    logConsole.textContent = '';
-    idlePlaceholder.style.display = 'none';
-    appendLog(`☎️ Sending ping test call to ${overridePhone}...`);
-
-    const formData = new FormData(form);
-
-    try {
-      const resp = await fetch('/test-twilio-only', { method: 'POST', body: formData });
-      const data = await resp.json();
-      
-      if (resp.ok) {
-        appendLog(`✅ ${data.message} (SID: ${data.call_sid})`);
-        appendLog("Wait for your phone to ring and answer it.");
-      } else {
-        appendLog(`❌ Twilio Error: ${data.message}`);
-      }
-    } catch (err) {
-      appendLog(`❌ Network Error: ${err.message}`);
-    } finally {
-      twilioBtn.disabled = false;
-      twilioBtnText.textContent = "Test Twilio Connection Only";
-    }
-  });
 
   // ── Form submit ──────────────────────────────────────────
   form.addEventListener('submit', async (e) => {

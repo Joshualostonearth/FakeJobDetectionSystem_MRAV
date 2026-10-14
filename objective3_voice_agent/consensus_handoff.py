@@ -1,7 +1,7 @@
 """
 consensus_handoff.py — Step 7: Push extracted voice signals into Objective 2.
 
-Attempts to import update_consensus from objective2.consensus_engine.
+Attempts to import the credibility engine from the project root.
 On ImportError (Objective 2 not available), logs the signals and continues —
 Objective 3 is fully standalone for testing.
 """
@@ -9,7 +9,7 @@ Objective 3 is fully standalone for testing.
 import logging
 from typing import Optional
 
-from schemas import SourcedNumber, VoiceVerificationResult
+from voice_schemas import SourcedNumber, VoiceVerificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def push_voice_signals(
     Args:
         claim_id:       Unique identifier for this verification run
         result:         Structured extraction result from fact_extractor
-        sourced_number: The phone number used (None if no number was found)
+        sourced_number: The call target (None if the call was not attempted)
 
     Returns:
         The signals dict (returned whether Obj2 is available or not).
@@ -43,15 +43,15 @@ def push_voice_signals(
     }
 
     try:
-        # Attempt handoff to Objective 2 consensus engine
-        from objective2.consensus_engine import update_consensus  # type: ignore
-        update_consensus(claim_id=claim_id, source="voice_verification", signals=signals)
-        logger.info(f"[ConsensusHandoff] ✅ Signals pushed to Objective 2 (claim_id={claim_id})")
+        # Attempt handoff to Objective 2 DST engine at the project root
+        from obj2dst import DSTEngine
+        logger.info(f"[ConsensusHandoff] ✅ Obj2 DSTEngine available (claim_id={claim_id})")
+        logger.info(f"[ConsensusHandoff] Signals for {claim_id}: {signals}")
 
     except ImportError:
-        # Objective 2 not present — this is expected in standalone testing mode
+        # Objective 2 not reachable — this is expected in standalone testing mode
         logger.warning(
-            "[ConsensusHandoff] ⚠️  Objective 2 consensus engine not found. "
+            "[ConsensusHandoff] ⚠️  Objective 2 DSTEngine not reachable from current path. "
             "Signals logged locally only."
         )
         logger.info(f"[ConsensusHandoff] Signals for {claim_id}: {signals}")
@@ -60,3 +60,4 @@ def push_voice_signals(
         logger.error(f"[ConsensusHandoff] Failed to push signals: {e}")
 
     return signals
+

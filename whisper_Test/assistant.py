@@ -12,6 +12,7 @@ Usage:
 Press Ctrl+C to stop.
 """
 
+import os
 import re
 import sys
 import threading
@@ -32,7 +33,7 @@ WHISPER_PORT = 9090
 WHISPER_MODEL = "small"
 WHISPER_LANG = "en"
 
-OLLAMA_MODEL = "ministral-3:latest"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ministral-3")
 SYSTEM_PROMPT = (
     "You are a helpful voice assistant. Keep your responses concise and conversational "
     "since they will be spoken aloud. Avoid using markdown, bullet points, numbered lists, "

@@ -32,7 +32,7 @@ from voice_tools import EdgeTTSSpeaker, OllamaChat, WhisperListener
 # Configuration
 # ──────────────────────────────────────────────
 
-OLLAMA_MODEL = "ministral-3:latest"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "ministral-3")
 TTS_VOICE = "en-US-AriaNeural"
 
 INPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "input")

@@ -27,13 +27,14 @@ def run_test():
     Apply via our official career portal at wikimediafoundation.org/careers or contact jobs@wikimedia.org.
     """
     
-    # Extract entities using local Ollama (Llama 3.2)
+    # Extract entities using local Ollama
     entities_obj = extract_entities_from_text(mock_raw_offer)
     
     # 🟢 Form dictionary cleanly to guarantee all key names match Objective 2 requirements
     entities = {
         "company_name": entities_obj.company_name,
         "job_role": entities_obj.job_role,
+        "recruiter_name": entities_obj.recruiter_name,
         "recruiter_email": entities_obj.recruiter_email,
         "domain_or_website": entities_obj.domain_or_website,
         "location": entities_obj.location

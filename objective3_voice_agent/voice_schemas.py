@@ -12,14 +12,14 @@ from pydantic import BaseModel, Field
 
 
 # ──────────────────────────────────────────────────────────
-# 1. Sourced Phone Number
+# 1. Call Target
 # ──────────────────────────────────────────────────────────
 
 @dataclass
 class SourcedNumber:
-    """A phone number independently sourced from an official API — never from the job posting."""
-    phone_number: str               # E.164 format: +91XXXXXXXXXX
-    source: str                     # "google_places" | "opencorporates" | "serpapi" | "dashboard_override"
+    """Who the verification call reached. Calls are simulated over WebRTC, so no number is dialled."""
+    phone_number: str               # Empty for simulated calls
+    source: str                     # "webrtc_simulation"
     company_name_matched: str       # Company name as returned by the source
     confidence: float               # 0.0 to 1.0
 
@@ -63,8 +63,7 @@ class VoiceVerificationResult(BaseModel):
 class PipelineResult(BaseModel):
     claim_id: str
     pipeline_completed: bool
-    skip_reason: Optional[str] = None       # e.g. "no_official_number_found", "recording_not_received"
+    skip_reason: Optional[str] = None       # e.g. "webrtc_session_failed", "session_not_completed"
     voice_signals: Optional[dict] = None    # Populated on success
     error: Optional[str] = None             # Populated on unhandled exception
     transcript: Optional[str] = None
-    sourced_number: Optional[str] = None

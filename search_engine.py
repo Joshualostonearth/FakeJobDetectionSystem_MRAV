@@ -45,27 +45,29 @@ class EvidenceRetriever:
         all_results = []
         
         try:
-            # 1. Legitimate Job Record Query (Baseline)
-            legit_query = f"{entities.company_name} {entities.job_role or ''} {entities.location or ''}".strip()
-            if legit_query:
+            # Both categories are searched with the same query so their
+            # distances are directly comparable when ranking the top match.
+            contact_info = getattr(entities, "email_or_phone", None) or getattr(entities, "recruiter_email", "") or ""
+            query = " ".join(
+                part for part in (entities.company_name, entities.job_role, entities.location, contact_info) if part
+            ).strip()
+            if query:
+                # 1. Legitimate Job Record Query (Baseline)
                 legit_results = self.vector_db.similarity_search_with_score(
-                    query=legit_query, 
+                    query=query,
                     k=top_k,
                     filter={"source_type": "legitimate_job_record"}
                 )
                 all_results.extend(legit_results)
-            
-            # 2. Scam Report Query
-            scam_query = f"{entities.company_name} {entities.job_role or ''} {entities.email_or_phone or ''} scam fraud fake offer".strip()
-            if scam_query:
+
+                # 2. Scam Report Query
                 scam_results = self.vector_db.similarity_search_with_score(
-                    query=scam_query, 
+                    query=query,
                     k=top_k,
                     filter={"source_type": "scam_report"}
                 )
                 all_results.extend(scam_results)
-                
-                
+
         except Exception as e:
             print(f"[Error] FAISS similarity search failed: {e}")
             return {

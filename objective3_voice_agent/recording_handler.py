@@ -1,87 +1,183 @@
 """
-recording_handler.py — Step 4: Wait for and download the Twilio call recording.
+recording_handler.py — Step 4: Retrieve the completed call transcript from WebRTC bridge.
 
-Polls the shared pending_recordings dict (populated by the Twilio webhook in audio_server.py)
-and downloads the WAV file with authenticated HTTP.
+After the WebRTC call session completes, this module retrieves the
+conversation transcript and responses from the call bridge instead of
+downloading a Twilio recording.
+
+The bridge (whisper_Test/call_bridge.py) already handles STT via WhisperLive
+in real-time during the call. This module polls for session completion and
+retrieves the final transcript + response data.
 """
 
+import json
 import logging
 import os
 import time
 from typing import Optional
 
 import requests
-from dotenv import load_dotenv
-
-load_dotenv(override=False)
 
 logger = logging.getLogger(__name__)
 
+# Default bridge URL — override via config["webrtc_bridge_url"]
+DEFAULT_BRIDGE_URL = "http://localhost:5000"
+
+
+def _bridge_url(config: dict) -> str:
+    """Return the bridge base URL from config or default."""
+    return config.get("webrtc_bridge_url", DEFAULT_BRIDGE_URL)
+
 
 def wait_for_recording(
-    call_sid: str,
-    pending_recordings: dict,
-    timeout_seconds: int = 90,
-) -> Optional[str]:
+    session_id: str,
+    config: dict,
+    timeout_seconds: int = 300,
+    poll_interval: int = 5,
+) -> Optional[dict]:
     """
-    Poll the pending_recordings dict until the Twilio webhook delivers a recording URL.
+    Poll the WebRTC bridge until the call session completes and return
+    the conversation transcript.
+
+    In the WebRTC flow, there is no separate recording file to download.
+    The bridge handles real-time STT and records all Q&A responses directly.
+    This function polls the bridge status and returns the transcript data
+    once the session is complete.
 
     Args:
-        call_sid:           Twilio Call SID to wait for
-        pending_recordings: Shared dict populated by POST /webhook/call-complete
-        timeout_seconds:    Maximum wait time before returning None
+        session_id:      Bridge session identifier
+        config:          voice_agent_config dict with webrtc_bridge_url
+        timeout_seconds: Maximum wait time before returning None
+        poll_interval:   Seconds between polls
 
     Returns:
-        Local path to the downloaded WAV file, or None if timed out.
+        Dict with transcript data, or None if timed out or errored.
+        {
+            "transcript": "Full conversation transcript text",
+            "word_count": 150,
+            "responses": [ { "question": "...", "answer": "...", ... }, ... ],
+            "session_complete": True
+        }
     """
+    bridge = _bridge_url(config)
     start = time.time()
-    logger.info(f"[RecordingHandler] Waiting for recording (call_sid={call_sid}, timeout={timeout_seconds}s)")
+    logger.info(
+        f"[RecordingHandler] Waiting for WebRTC session to complete "
+        f"(session_id={session_id}, timeout={timeout_seconds}s)"
+    )
 
     while time.time() - start < timeout_seconds:
-        if call_sid in pending_recordings:
-            recording_url = pending_recordings.pop(call_sid)
-            logger.info(f"[RecordingHandler] Recording URL received: {recording_url}")
-            return download_recording(recording_url, call_sid)
-        time.sleep(3)
+        try:
+            response = requests.get(f"{bridge}/bridge/status", timeout=10)
+            response.raise_for_status()
+            status = response.json()
 
-    logger.warning(f"[RecordingHandler] Timed out waiting for recording (call_sid={call_sid})")
+            if not status.get("session_active"):
+                # Session ended — either completed or never started
+                logger.info(
+                    f"[RecordingHandler] Session no longer active "
+                    f"(session_id={session_id})"
+                )
+                # Try to retrieve the final response file
+                return _retrieve_transcript(session_id, config)
+
+            state = status.get("state", "unknown")
+            q_idx = status.get("question_index", "?")
+            total = status.get("total_questions", "?")
+
+            logger.debug(
+                f"[RecordingHandler] Session {session_id}: "
+                f"state={state}, progress={q_idx}/{total}"
+            )
+
+            if state == "complete":
+                logger.info(
+                    f"[RecordingHandler] ✅ Session completed "
+                    f"(session_id={session_id})"
+                )
+                return _retrieve_transcript(session_id, config)
+
+        except requests.ConnectionError:
+            logger.warning(
+                "[RecordingHandler] Cannot connect to bridge — "
+                "is call_bridge.py running?"
+            )
+        except Exception as e:
+            logger.warning(f"[RecordingHandler] Error polling bridge: {e}")
+
+        time.sleep(poll_interval)
+
+    logger.warning(
+        f"[RecordingHandler] Timed out waiting for session "
+        f"(session_id={session_id})"
+    )
     return None
 
 
-def download_recording(recording_url: str, call_sid: str = "") -> str:
+def _retrieve_transcript(session_id: str, config: dict) -> Optional[dict]:
     """
-    Download the Twilio recording WAV file using Basic Auth.
+    Load the saved response JSON from the whisper_Test/responses/ directory.
+
+    The call bridge saves the full Q&A transcript to a JSON file in the
+    responses/ directory. This function reads it and returns a normalized
+    transcript dict.
 
     Args:
-        recording_url: Twilio recording resource URL (without extension)
-        call_sid:      Used to generate a unique local filename
+        session_id: The session identifier (used to find the response file)
+        config:     voice_agent_config dict
 
     Returns:
-        Local path where the WAV was saved.
+        Dict with transcript, word_count, responses, and session_complete
     """
     import pathlib
-    pathlib.Path("temp/recordings").mkdir(parents=True, exist_ok=True)
 
-    wav_url = recording_url.rstrip("/") + ".wav"
-    logger.debug(f"[RecordingHandler] Downloading: {wav_url}")
+    # The response file is saved by the bridge in whisper_Test/responses/
+    responses_dir = pathlib.Path(__file__).parent.parent / "whisper_Test" / "responses"
 
-    response = requests.get(
-        wav_url,
-        auth=(
-            os.getenv("TWILIO_ACCOUNT_SID"),
-            os.getenv("TWILIO_AUTH_TOKEN"),
-        ),
-        timeout=30,
-    )
-    response.raise_for_status()
+    # Session ID is the filename stem (e.g., "acme_tech_solutions_data_analyst_intern")
+    response_file = responses_dir / f"{session_id}.json"
 
-    # Use call_sid for filename if available, otherwise derive from URL
-    filename = f"{call_sid}.wav" if call_sid else recording_url.split("/")[-1] + ".wav"
-    local_path = f"temp/recordings/{filename}"
+    if not response_file.exists():
+        logger.warning(
+            f"[RecordingHandler] Response file not found: {response_file}"
+        )
+        return None
 
-    with open(local_path, "wb") as f:
-        f.write(response.content)
+    try:
+        with open(response_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    size_kb = len(response.content) / 1024
-    logger.info(f"[RecordingHandler] Saved {local_path} ({size_kb:.1f} KB)")
-    return local_path
+        responses = data.get("responses", [])
+
+        # Build full transcript from Q&A pairs
+        transcript_parts = []
+        for r in responses:
+            q = r.get("question", "")
+            a = r.get("answer", "")
+            status = r.get("status", "pending")
+
+            if status == "answered" and a:
+                transcript_parts.append(f"Q: {q}")
+                transcript_parts.append(f"A: {a}")
+
+        full_transcript = "\n".join(transcript_parts)
+        word_count = len(full_transcript.split()) if full_transcript else 0
+
+        result = {
+            "transcript": full_transcript,
+            "word_count": word_count,
+            "responses": responses,
+            "session_complete": True,
+            "source": "webrtc_bridge",
+        }
+
+        logger.info(
+            f"[RecordingHandler] ✅ Transcript loaded: "
+            f"{word_count} words, {len(responses)} Q&A pairs"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"[RecordingHandler] Error reading response file: {e}")
+        return None

@@ -11,7 +11,7 @@ import logging
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
-from schemas import VoiceVerificationResult
+from voice_schemas import VoiceVerificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ def extract_facts(
 
     try:
         llm = ChatOllama(
-            model=config.get("ollama_model", "llama3.2"),
+            model=config.get("ollama_model", "ministral-3"),
             temperature=0,
         ).with_structured_output(VoiceVerificationResult)
 

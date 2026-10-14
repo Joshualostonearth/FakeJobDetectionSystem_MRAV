@@ -8,14 +8,13 @@ Run with:  python -m pytest tests/test_objective3.py -v
 import sys
 import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 # ── Path setup ─────────────────────────────────────────────────
-# IMPORTANT: OBJ3_ROOT must come BEFORE PROJECT_ROOT so that
-# 'from schemas import ...' resolves to objective3_voice_agent/schemas.py
-# rather than the root-level schemas/ package.
+# OBJ3_ROOT is on the path so obj3's flat imports
+# (e.g. 'from voice_schemas import ...') resolve.
 PROJECT_ROOT = Path(__file__).parent.parent
 OBJ3_ROOT = PROJECT_ROOT / "objective3_voice_agent"
 
@@ -40,14 +39,6 @@ for _mod in _STUB_MODULES:
     if _mod not in sys.modules:
         sys.modules[_mod] = MagicMock()
 
-# ── Pre-register obj3 schemas so 'from schemas import X' inside obj3 modules
-# always resolves to objective3_voice_agent/schemas.py, NOT the root schemas/ package.
-import importlib.util as _ilu
-_schemas_spec = _ilu.spec_from_file_location("schemas", str(OBJ3_ROOT / "schemas.py"))
-_schemas_mod = _ilu.module_from_spec(_schemas_spec)
-_schemas_spec.loader.exec_module(_schemas_mod)
-sys.modules["schemas"] = _schemas_mod  # override root schemas/ package
-
 
 # ═══════════════════════════════════════════════════════════
 # Test 1 — Disclosure line is mandatory in generated script
@@ -67,23 +58,6 @@ def test_script_contains_disclosure():
         "Mandatory disclosure line 'This call may be recorded for verification purposes' "
         "is missing from the generated script."
     )
-
-
-# ═══════════════════════════════════════════════════════════
-# Test 2 — Unknown company returns None from number sourcer
-# ═══════════════════════════════════════════════════════════
-
-def test_number_sourcer_returns_none_for_fake_company():
-    """
-    When all three API tiers fail (keys empty or no result), source_official_number
-    must return None rather than raising.
-    """
-    from number_sourcer import source_official_number
-
-    config = {"number_source_min_confidence": 0.6}
-    # Use an obviously fake company name; all API keys will be empty in test env
-    result = source_official_number("XYZZY_FAKE_COMPANY_12345_TEST", "Mars", config)
-    assert result is None, "Expected None for an unknown company with no API keys set"
 
 
 # ═══════════════════════════════════════════════════════════
@@ -120,9 +94,9 @@ def test_fact_extractor_handles_empty_transcript():
     company_reached=False and confidence=0.0 — without calling the LLM.
     """
     from fact_extractor import extract_facts
-    from schemas import VoiceVerificationResult
+    from voice_schemas import VoiceVerificationResult
 
-    config = {"ollama_model": "llama3.2"}
+    config = {"ollama_model": "ministral-3"}
     entity = {"company_name": "Test Corp", "role": "Dev", "recruiter_name": None}
 
     result = extract_facts("", entity, config)
@@ -143,7 +117,7 @@ def test_denial_detected(mock_llm_class):
     Uses a mock to avoid requiring Ollama to be running during CI.
     """
     from fact_extractor import extract_facts
-    from schemas import VoiceVerificationResult
+    from voice_schemas import VoiceVerificationResult
 
     # Set up the mock chain
     mock_instance = MagicMock()
@@ -169,7 +143,7 @@ def test_denial_detected(mock_llm_class):
     with patch("fact_extractor.EXTRACTION_PROMPT") as mock_prompt:
         mock_prompt.__or__ = MagicMock(return_value=mock_chain)
 
-        config = {"ollama_model": "llama3.2"}
+        config = {"ollama_model": "ministral-3"}
         entity = {"company_name": "Google", "role": "SWE Intern", "recruiter_name": "Jane"}
         result = extract_facts(
             "We don't have any openings for that role.", entity, config
@@ -207,41 +181,40 @@ def test_temp_files_cleaned_up(tmp_path):
 
 
 # ═══════════════════════════════════════════════════════════
-# Test 7 — Pipeline skips gracefully when no number found
+# Test 7 — Simulated call goes straight to the WebRTC session
 # ═══════════════════════════════════════════════════════════
 
-@patch("number_sourcer.source_official_number", return_value=None)
-@patch("voice_agent.check_env")
-@patch("voice_agent.check_ollama")
-def test_pipeline_skips_on_no_number(mock_ollama, mock_env, mock_source):
+@patch("call_initiator.initiate_verification_call", return_value={"success": False, "error": "bridge down"})
+@patch("voice_agent.push_voice_signals")
+@patch("voice_agent.generate_verification_audio", new_callable=AsyncMock)
+def test_pipeline_simulated_call_reports_session_failure(mock_audio, mock_push, mock_initiate):
     """
-    When source_official_number returns None, run_voice_verification must
-    return skip_reason='no_official_number_found' without crashing.
+    No phone number is sourced: the pipeline starts the WebRTC session
+    directly, and a failed session is reported as 'webrtc_session_failed'
+    with a simulated call target.
     """
     from voice_agent import run_voice_verification
 
     config = {
-        "number_source_min_confidence": 0.6,
         "recording_timeout": 10,
-        "public_base_url": "http://localhost:8765",
-        "whisper_model_size": "base",
-        "whisper_device": "cpu",
-        "whisper_compute_type": "int8",
-        "ollama_model": "llama3.2",
-        "call_ring_timeout": 10,
-        "call_max_duration": 30,
+        "ollama_model": "ministral-3",
     }
     result = run_voice_verification(
-        claim_id="test_skip_001",
+        claim_id="test_sim_001",
         entity={
-            "company_name": "FAKE_COMPANY_DOES_NOT_EXIST",
+            "company_name": "Acme Corp",
             "role": "Internship",
-            "location": "Nowhere",
+            "location": "Bangalore, India",
             "recruiter_name": None,
         },
         config=config,
-        override_phone=None,
     )
 
-    assert result["skip_reason"] == "no_official_number_found"
+    assert mock_initiate.called, "WebRTC session should be started without number sourcing"
+    assert result["skip_reason"] == "webrtc_session_failed"
     assert result["pipeline_completed"] is False
+
+    sourced = mock_push.call_args.args[2]
+    assert sourced.source == "webrtc_simulation"
+    assert sourced.phone_number == ""
+

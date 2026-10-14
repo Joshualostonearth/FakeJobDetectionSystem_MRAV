@@ -130,17 +130,23 @@ def generate_alignment_triple(
     prompt = _build_alignment_prompt(entities, doc)
 
     def api_call(client):
-        try:
-            response = client.chat.completions.create(
-                model=OLLAMA_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=512,
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            print(f"[Warning] LLM Call Failed ({e}). Using mock response for evaluation.")
-            return "<HYPOTHESIS>: Contradicts\n<EXPLANATION>: Mock fallback: Fields do not align.\n<CONSISTENCY_SCORE>: 0.2"
+        response = client.chat.completions.create(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=512,
+        )
+        return response.choices[0].message.content.strip()
 
-    raw_response = key_pool.execute(api_call)
+    try:
+        raw_response = key_pool.execute(api_call)
+    except Exception as e:
+        # No LLM judgement available — stay neutral rather than inventing one.
+        print(f"[Warning] LLM alignment unavailable ({e}). Marking document as Neutral.")
+        return MRAVTriple(
+            hypothesis="Neutral",
+            explanation=f"LLM alignment unavailable ({OLLAMA_MODEL}): {e}",
+            consistency_score=0.5,
+        )
+
     return _parse_alignment_response(raw_response)

@@ -19,27 +19,14 @@ from dotenv import load_dotenv
 
 ENV_TEMPLATE = """\
 # ============================================================
-# OBJECTIVE 3 — VOICE VERIFICATION AGENT
-# Fill in all values before running the pipeline
+# OBJECTIVE 3 — VOICE VERIFICATION AGENT (WebRTC)
+# Runs locally; the only setting is the Ollama model.
 # ============================================================
 
-TWILIO_ACCOUNT_SID=""
-TWILIO_AUTH_TOKEN=""
-TWILIO_PHONE_NUMBER=""
-GOOGLE_PLACES_API_KEY=""
-SERPAPI_KEY=""
-OPENCORPORATES_API_KEY=""
-NGROK_AUTHTOKEN=""
-OLLAMA_MODEL="llama3.2"
+OLLAMA_MODEL="ministral-3"
 """
 
-REQUIRED_KEYS = ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"]
-OPTIONAL_KEYS = [
-    "GOOGLE_PLACES_API_KEY",
-    "SERPAPI_KEY",
-    "OPENCORPORATES_API_KEY",
-    "NGROK_AUTHTOKEN",
-]
+DEFAULT_OLLAMA_MODEL = "ministral-3"
 
 
 # ──────────────────────────────────────────────────────────
@@ -48,57 +35,21 @@ OPTIONAL_KEYS = [
 
 def check_env() -> None:
     """
-    Validate .env file and required keys.
+    Load .env, creating it from the template if it does not exist.
 
-    - If .env does not exist: create the template and exit (developer must fill it in).
-    - If .env exists: load it, print per-key status, hard-exit if any required key is empty.
+    No API keys are required — the call is simulated over WebRTC and all
+    models run locally through Ollama.
     """
     env_path = Path(".env")
 
     if not env_path.exists():
         env_path.write_text(ENV_TEMPLATE, encoding="utf-8")
         print("✅ .env file created from template.")
-        print("   Fill in your API keys then run again:")
-        print("   Required: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER")
-        sys.exit(0)
 
     load_dotenv(dotenv_path=env_path, override=True)
 
-    print(".env found. Key status:")
-
-    missing_required: list[str] = []
-
-    for key in REQUIRED_KEYS:
-        val = os.getenv(key, "")
-        status = "✅ set" if val else "❌ MISSING"
-        print(f"  {key:<30}: {status}")
-        if not val:
-            missing_required.append(key)
-
-    optional_labels = {
-        "GOOGLE_PLACES_API_KEY":  "empty — Google Places disabled",
-        "SERPAPI_KEY":            "empty — SerpAPI fallback disabled",
-        "OPENCORPORATES_API_KEY": "empty — OpenCorporates disabled (optional)",
-        "NGROK_AUTHTOKEN":        "empty — Ngrok disabled (set use_ngrok: false in config)",
-    }
-
-    for key in OPTIONAL_KEYS:
-        val = os.getenv(key, "")
-        if val:
-            status = "✅ set"
-        else:
-            status = f"⚠️  {optional_labels.get(key, 'empty')}"
-        print(f"  {key:<30}: {status}")
-
-    ollama_model = os.getenv("OLLAMA_MODEL", "llama3.2")
-    print(f"  {'OLLAMA_MODEL':<30}: ✅ set ({ollama_model})")
-
-    if missing_required:
-        print(f"\nERROR: Required keys missing: {', '.join(missing_required)}")
-        print("Fill them in .env and try again.")
-        sys.exit(1)
-
-    print("\n✅ All required keys present.\n")
+    ollama_model = os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
+    print(f"  {'OLLAMA_MODEL':<30}: {ollama_model}\n")
 
 
 # ──────────────────────────────────────────────────────────
@@ -110,10 +61,10 @@ def check_ollama(model: str = None) -> None:
     Verify Ollama is installed, running, and the target model is available.
 
     Args:
-        model: Model name to check (e.g. "llama3.2"). Reads OLLAMA_MODEL from env if None.
+        model: Model name to check (e.g. "ministral-3"). Reads OLLAMA_MODEL from env if None.
     """
     load_dotenv(override=False)
-    model = model or os.getenv("OLLAMA_MODEL", "llama3.2")
+    model = model or os.getenv("OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL)
 
     try:
         result = subprocess.run(

@@ -18,7 +18,10 @@ Credibility Tiers:
     C_idx ≥ 0.5         → Trusted
 
 Routing:
-    Always → PROCEED_TO_CONFIDENCE_FRAMEWORK (voice verification out of scope)
+    - PROCEED_TO_VOICE_VERIFICATION: When critical flags are detected or
+      overall trust is below the voice-verification threshold (< 0.6).
+    - PROCEED_TO_CONFIDENCE_FRAMEWORK: When the evidence is sufficient and
+      no critical signals warrant phone-based verification.
 """
 
 from typing import Optional
@@ -54,6 +57,10 @@ GAMMA: float = 0.4  # Consensus weight
 # Tier thresholds
 DISCARD_THRESHOLD: float = 0.3
 TRUSTED_THRESHOLD: float = 0.5
+
+# Voice verification routing threshold:
+# If overall trust < this AND critical flags exist → route to Obj3
+VOICE_VERIFICATION_TRUST_THRESHOLD: float = 0.6
 
 
 def _classify_tier(c_idx: float) -> str:
@@ -218,6 +225,29 @@ def _evaluate_single_document(
     return evaluated, flags
 
 
+def _determine_routing(
+    overall_trust: float,
+    flags: list[CredibilityFlag],
+) -> str:
+    """
+    Determine whether the offer should be routed to voice verification
+    or directly to the confidence framework.
+
+    Routes to voice verification when:
+      - Overall trust is below the threshold (< 0.6), OR
+      - Any CRITICAL flags were raised (scam patterns, domain mismatches)
+
+    Returns:
+        Routing decision string.
+    """
+    has_critical_flags = any(f.severity == "CRITICAL" for f in flags)
+
+    if has_critical_flags or overall_trust < VOICE_VERIFICATION_TRUST_THRESHOLD:
+        return "PROCEED_TO_VOICE_VERIFICATION"
+    else:
+        return "PROCEED_TO_CONFIDENCE_FRAMEWORK"
+
+
 def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPayload:
     """
     Main entrypoint for Objective 2: Credibility Filtration Layer.
@@ -225,6 +255,11 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
     Evaluates every document in the retrieved evidence bundle and produces
     a unified credibility assessment with per-document scores, flags,
     and a routing decision.
+
+    Routing logic:
+        - If critical flags are detected or overall trust < 0.6,
+          routes to PROCEED_TO_VOICE_VERIFICATION (Objective 3).
+        - Otherwise routes to PROCEED_TO_CONFIDENCE_FRAMEWORK.
 
     Args:
         payload: The Objective2InputPayload containing extracted offer
@@ -292,9 +327,12 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
             unique_flags.append(flag)
             seen_messages.add(flag.message)
 
+    # Determine routing decision based on trust score and flags
+    routing = _determine_routing(overall_trust, unique_flags)
+
     print(f"[CredibilityEngine] Done. Overall trust: {overall_trust:.3f}, "
           f"Retained: {len(evaluated_docs)}, Discarded: {len(discarded_docs)}, "
-          f"Flags: {len(unique_flags)}")
+          f"Flags: {len(unique_flags)}, Routing: {routing}")
 
     return Objective2OutputPayload(
         offer_id=payload.offer_id,
@@ -304,5 +342,6 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
         ),
         evaluated_evidence=evaluated_docs,
         discarded_evidence=discarded_docs,
-        routing_decision="PROCEED_TO_CONFIDENCE_FRAMEWORK",
+        routing_decision=routing,
     )
+
