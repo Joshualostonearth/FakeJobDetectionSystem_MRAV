@@ -317,32 +317,6 @@ body::before {
     flex-wrap: wrap;
 }
 
-.session-input label {
-    font-family: var(--mono);
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--muted);
-}
-
-.select-input {
-    font-family: inherit;
-    padding: 11px 14px;
-    font-size: 14px;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    flex: 1;
-    min-width: 180px;
-    background: var(--surface-alt);
-    color: var(--ink);
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.select-input:focus {
-    border-color: var(--accent);
-}
-
 .questions-list {
     font-size: 14px;
     color: var(--muted);

@@ -1,6 +1,13 @@
+import os
+
 import tldextract
+from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
+
+load_dotenv()
+
+OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "ministral-3")
 
 # --- 1. RULE-BASED CHECKERS (Fast, Deterministic) ---
 
@@ -28,14 +35,14 @@ def check_free_email(email: str) -> bool:
     return domain in free_hosts
 
 
-# --- 2. M-RAV CONSISTENCY EVALUATOR (Ollama Llama 3.2) ---
+# --- 2. M-RAV CONSISTENCY EVALUATOR (local Ollama) ---
 
 def evaluate_mrav_consistency(entities: dict, retrieved_evidence: list) -> dict:
     """
-    Uses local Ollama (Llama 3.2) to evaluate semantic consistency 
+    Uses the local Ollama model (OLLAMA_MODEL) to evaluate semantic consistency 
     between extracted job claims and FAISS evidence documents.
     """
-    llm = ChatOllama(model="llama3.2", temperature=0)
+    llm = ChatOllama(model=OLLAMA_MODEL, temperature=0)
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a Credibility Filtration Agent for a job scam detection system.
@@ -100,8 +107,9 @@ def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
         flags.append("WARNING: Recruiter using free public email address (e.g. @gmail.com)")
         trust_score -= 25.0
 
-    # Check 2: Top Match Known Scam Check
-    if retrieved_evidence and retrieved_evidence[0].get("metadata", {}).get("fraudulent") == 1:
+    # Check 2: Top Match Known Scam Check (closest = lowest FAISS distance)
+    top_match = min(retrieved_evidence, key=lambda d: d.get("distance", float("inf")), default=None)
+    if top_match and top_match.get("metadata", {}).get("fraudulent") == 1:
         flags.append("CRITICAL: Top similarity match in FAISS database is a known fraudulent listing")
         trust_score -= 50.0
 

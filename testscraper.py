@@ -1,10 +1,11 @@
 import json
+import os
 from scrapegraphai.graphs import SmartScraperGraph
 #Local llm
 # Local pipeline configuration pointing strictly to Ollama
 graph_config = {
     "llm": {
-        "model": "ollama/llama3.2",
+        "model": f"ollama/{os.getenv('OLLAMA_MODEL', 'ministral-3')}",
         "temperature": 0,
         "format": "json",
         "base_url": "http://localhost:11434",

@@ -25,7 +25,6 @@ const btnTestTTS   = document.getElementById('btn-test-tts');
 
 // Session controls
 const btnStartSession = document.getElementById('btn-start-session');
-const inputFileSelect = document.getElementById('input-file');
 const questionsListEl = document.getElementById('questions-list');
 
 // Web Scraper controls
@@ -449,13 +448,11 @@ async function startVerificationSession() {
     updateAIStatus('Starting session...', '#f0a500');
     
     try {
-        let inputData;
-        
         // If web scraper has extracted target company details and phone number, use them!
         if (activeScrapedData && activeScrapedData.company_name) {
             const scrapedPhone = (extractedPhoneInput && extractedPhoneInput.value.trim()) || activeScrapedData.primary_phone;
             console.log(`[Session] Starting session with web scraped payload: ${activeScrapedData.company_name} (${scrapedPhone})`);
-            inputData = {
+            const inputData = {
                 company_name: activeScrapedData.company_name,
                 job_title: "Verified Position",
                 job_type: "full-time",
@@ -469,34 +466,52 @@ async function startVerificationSession() {
                     { id: "R2", reason: "AI voice verification session for scraped company profile" }
                 ]
             };
+
+            // Create the session from the scraped data (generates questions via LLM)
+            const res = await fetch('/api/start-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(inputData),
+            });
+        
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error);
+            updateQuestionsPanel(data.questions || []);
         } else {
-            // Fetch selected local JSON file
-            const fileName = inputFileSelect.value;
-            const resJson = await fetch(`/${fileName}.json`);
-            inputData = await resJson.json();
+            // Step 1: Use the session the Streamlit app prepared for the analysed offer.
+            const statusRes = await fetch('/api/session-status');
+            const status = await statusRes.json();
+
+            if (!(status.session_active && status.state === 'active')) {
+                updateAIStatus('No session yet — analyse an offer in the app first, then click Start Session.', 'red');
+                btnStartSession.disabled = false;
+                return;
+            }
+
+            console.log(`[Session] Using session: ${status.session_id}`);
+            updateQuestionsPanel(status.questions || []);
+
+            if (status.question_index > 0) {
+                // Call already in progress (e.g. page reloaded) — keep listening
+                sessionActive = true;
+                audioManager.setMode('agent');
+                autoRecordLoop();
+                return;
+            }
         }
-        
-        // Step 1: Create the session (generates questions via LLM)
-        const res = await fetch('/api/start-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(inputData),
-        });
-        
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error);
-        
+
         sessionActive = true;
-        updateQuestionsPanel(data.questions);
         audioManager.setMode('agent');
-        
+
         // Step 2: Speak the greeting + Q1 (generates TTS audio)
         updateAIStatus('AI introducing itself...', '#f0a500');
         const speakRes = await fetch('/api/speak-first', { method: 'POST' });
         const speakData = await speakRes.json();
-        
-        if (speakData.success && speakData.tts_audio_b64) {
-            updateAgentPanel(speakData.agent_text);
+
+        if (speakData.success && speakData.ttsId) {
+            // The server already emits 'agent-response' via Socket.IO,
+            // which triggers TTS playback and then autoRecordLoop via onTTSComplete.
+            updateAgentPanel(speakData.text);
             updateAIStatus('AI speaking Q1...', '#2ecc71');
         } else {
             console.warn('[Session] speak-first returned no audio, starting listen loop.');

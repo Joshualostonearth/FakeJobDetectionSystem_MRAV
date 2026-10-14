@@ -5,6 +5,7 @@ env/
 whisper_Test/.venv
 # Vector Database Indexes
 faiss_index/
+faiss_index_seed/
 
 # Python Cache
 __pycache__/
@@ -38,3 +39,13 @@ share/python-wheels/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# start_all.sh service logs
+logs/
+
+# Per-call generated audio/recordings (keep the .gitkeep placeholders)
+objective3_voice_agent/temp/*/*
+!objective3_voice_agent/temp/*/.gitkeep
+
+# WhisperLive transcription output (rewritten on every call)
+output.srt

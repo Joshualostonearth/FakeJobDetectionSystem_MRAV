@@ -134,7 +134,14 @@ class Objective2OutputPayload(BaseModel):
         default_factory=list,
         description="Documents filtered out due to C_idx < 0.3"
     )
-    routing_decision: Literal["PROCEED_TO_CONFIDENCE_FRAMEWORK"] = Field(
+    routing_decision: Literal[
+        "PROCEED_TO_CONFIDENCE_FRAMEWORK",
+        "PROCEED_TO_VOICE_VERIFICATION",
+    ] = Field(
         default="PROCEED_TO_CONFIDENCE_FRAMEWORK",
-        description="Always routes to confidence framework (voice verification out of scope)"
+        description=(
+            "Routes to confidence framework by default. "
+            "Routes to voice verification when critical flags are triggered "
+            "and additional phone-based verification is warranted."
+        ),
     )

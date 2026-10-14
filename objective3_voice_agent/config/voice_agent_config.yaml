@@ -5,9 +5,10 @@
 # ============================================================
 
 # --- Server ---
-use_ngrok: true
+use_ngrok: false
 server_port: 8765
-public_base_url: ""           # auto-set at runtime by Ngrok or manual deploy URL
+webrtc_bridge_url: "http://localhost:5000"
+public_base_url: "http://localhost:8765"
 
 # --- Voice Selection ---
 voice_india: "en-IN-NeerjaNeural"
@@ -21,13 +22,11 @@ whisper_device: "cpu"
 whisper_compute_type: "int8"
 
 # --- LLM ---
-ollama_model: "llama3.2"
+# Overridden by the OLLAMA_MODEL environment variable when set
+ollama_model: "ministral-3"
 
 # --- Timeouts (seconds) ---
 call_ring_timeout: 30
 call_max_duration: 120
-recording_timeout: 90
-
-# --- Number sourcing ---
-number_source_min_confidence: 0.6
-top_k_number_sources: 1       # only use the highest-confidence number found
+recording_timeout: 600           # whole call: 10 questions, each answered + processed by the LLM
+session_start_timeout: 300      # question generation on the local LLM

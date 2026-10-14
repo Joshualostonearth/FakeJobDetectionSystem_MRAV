@@ -4,7 +4,9 @@ from langchain_core.documents import Document
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
-def build_and_save_faiss_index(json_path: str, save_folder: str = "faiss_index"):
+# Writes to its own folder so it never overwrites the EMSCAD index
+# (faiss_index/, built by ingest_emscad.py) that the app loads.
+def build_and_save_faiss_index(json_path: str, save_folder: str = "faiss_index_seed"):
     # 1. Initialize Open-Source Embedding Model
     print("Loading embedding model...")
     embedding_model = HuggingFaceEmbeddings(

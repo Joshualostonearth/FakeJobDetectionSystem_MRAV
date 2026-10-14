@@ -11,6 +11,6 @@ langchain>=0.2.0
 langchain-community>=0.2.0
 langchain-core>=0.2.0
 langchain-ollama>=0.1.0
-twilio>=9.0.0
-edge-tts>=6.1.9
+
+edge-tts>=7.3.1
 faster-whisper>=1.0.0

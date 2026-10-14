@@ -1,10 +1,15 @@
 """
-DST (Dempster-Shafer Theory) Engine for combining evidence.
-Dempster's Rule for merging belief masses from multiple sources:
-Registry, LinkedIn, Scam Reports, and Voice Call Mass.
+DST (Dempster-Shafer Theory) Engine for combining evidence
+Dempster's Rule for merging belief masses from multiple sources
 
-Focal elements supported: {REAL}, {FAKE}, {UNCERTAIN}.
-Exposes top-level combine_two() and combine_all() functions and conflict factor K.
+Frame of discernment: {REAL, FAKE}. Every mass function assigns belief to
+three focal elements:
+    REAL       — m({REAL})
+    FAKE       — m({FAKE})
+    UNCERTAIN  — m({REAL, FAKE}), i.e. ignorance / "evidence doesn't say"
+
+Weak evidence leaves most of its mass on UNCERTAIN instead of pushing it
+onto the opposite hypothesis.
 """
 
 from typing import Dict, List, Optional
@@ -28,52 +33,71 @@ class DSTEngine:
         metadata_quality: float = 0.7,
     ) -> Dict[str, float]:
         """
-        Assign a 3-focal mass function m({REAL}), m({FAKE}), m({UNCERTAIN}) based on evidence.
-
+        Assign mass function m({REAL}), m({FAKE}), m({REAL, FAKE}) based on evidence
+        
         Args:
-            similarity_score: Similarity / relevance score (0-1)
-            source_type: Type of source (scam_db, linkedin, registry, voice_call, etc.)
-            is_fraudulent: Label from record (0 = legitimate, 1 = scam)
-            metadata_quality: Source completeness / trustworthiness (0-1)
-
+            similarity_score: Similarity / credibility (0-1, higher = stronger evidence)
+            source_type: Type of source (scam_report, linkedin, registry, etc.)
+            is_fraudulent: Label from database (0 = legitimate, 1 = scam)
+            metadata_quality: How complete/trustworthy is the metadata (0-1)
+        
         Returns:
-            Dict with REAL, FAKE, UNCERTAIN masses and metadata.
+            Dictionary with REAL, FAKE and UNCERTAIN masses
         """
-        similarity_confidence = min(max(float(similarity_score), 0.0), 1.0)
-
+        
+        # Base belief from similarity score
+        similarity_confidence = max(0.0, min(similarity_score, 1.0))
+        
+        # Source credibility weighting
         source_credibility = {
-            "registry": 0.95,
-            "voice_call": 0.95,
-            "linkedin": 0.85,
-            "scam_db": 0.85,
-            "scam_report": 0.85,
-            "news_sources": 0.75,
-            "user_reports": 0.60,
-            "unknown": 0.50,
+            "scam_db": 0.8,          # High trust - verified scam reports
+            "linkedin": 0.85,        # High trust - official company data
+            "registry": 0.90,        # Very high - government verified
+            "user_reports": 0.6,     # Medium - user-submitted
+            "news_sources": 0.75,    # Medium-high
+            "voice_call": 0.95,      # HIGHEST - independent verification
+            "unknown": 0.5,          # Low - unknown source
+
+            # Source types emitted by Objective 1 / Objective 2
+            "government_registry": 0.90,
+            "linkedin_verified": 0.85,
+            "scam_report": 0.8,
+            "scam_report_forum": 0.6,
+            "legitimate_job_record": 0.7,   # EMSCAD labelled listing
+            "third_party_aggregator": 0.6,
+            "glassdoor": 0.6,
+            "crunchbase": 0.6,
+            "job_board": 0.6,
         }
-
-        credibility = source_credibility.get(source_type, 0.50)
-        evidence_strength = similarity_confidence * credibility * metadata_quality
-        evidence_strength = min(max(evidence_strength, 0.0), 0.95)
-
+        
+        credibility = source_credibility.get(source_type, 0.5)
+        
+        # Combine similarity + credibility + metadata quality
+        evidence_strength = similarity_confidence * credibility * max(0.0, min(metadata_quality, 1.0))
+        evidence_strength = min(evidence_strength, 1.0)
+        
+        # Evidence supports its own label; the remainder is ignorance,
+        # not support for the opposite hypothesis.
         if is_fraudulent == 1:
-            mass_fake = round(evidence_strength, 6)
-            mass_real = 0.0
-            mass_uncertain = round(1.0 - mass_fake, 6)
+            mass_real, mass_fake = 0.0, evidence_strength
         else:
-            mass_real = round(evidence_strength, 6)
-            mass_fake = 0.0
-            mass_uncertain = round(1.0 - mass_real, 6)
-
+            mass_real, mass_fake = evidence_strength, 0.0
+        
         return {
             "REAL": mass_real,
             "FAKE": mass_fake,
-            "UNCERTAIN": mass_uncertain,
+            "UNCERTAIN": 1.0 - evidence_strength,
             "source": source_type,
             "strength": round(evidence_strength, 4),
         }
-
-    def dempster_combine(self, m1: Dict[str, float], m2: Dict[str, float]) -> Dict[str, float]:
+    
+    def _uncertain_mass(self, m: Dict) -> float:
+        """m({REAL, FAKE}); derived from REAL/FAKE for masses without an UNCERTAIN key."""
+        if "UNCERTAIN" in m:
+            return m["UNCERTAIN"]
+        return max(0.0, 1.0 - m["REAL"] - m["FAKE"])
+    
+    def dempster_combine(self, m1: Dict, m2: Dict) -> Dict[str, float]:
         """
         Combine two 3-focal mass functions m1 and m2 using Dempster's Rule of Combination.
 
@@ -85,86 +109,106 @@ class DSTEngine:
             m12(FAKE)      = [m1(FAKE)*m2(FAKE) + m1(FAKE)*m2(UNCERTAIN) + m1(UNCERTAIN)*m2(FAKE)] / (1 - K)
             m12(UNCERTAIN) = [m1(UNCERTAIN)*m2(UNCERTAIN)] / (1 - K)
         """
-        m1_real = m1.get("REAL", 0.0)
-        m1_fake = m1.get("FAKE", 0.0)
-        m1_unc = m1.get("UNCERTAIN", 1.0 - m1_real - m1_fake)
-
-        m2_real = m2.get("REAL", 0.0)
-        m2_fake = m2.get("FAKE", 0.0)
-        m2_unc = m2.get("UNCERTAIN", 1.0 - m2_real - m2_fake)
-
-        # Conflict factor K (empty set intersections)
-        conflict = (m1_real * m2_fake) + (m1_fake * m2_real)
-        norm = 1.0 - conflict
-
-        if norm <= self.epsilon:
-            # Complete conflict — default to max uncertainty
+        u1 = self._uncertain_mass(m1)
+        u2 = self._uncertain_mass(m2)
+        
+        # Intersections that land on each focal element
+        # ({REAL} ∩ {REAL, FAKE} = {REAL}, etc.)
+        match_real = m1["REAL"] * m2["REAL"] + m1["REAL"] * u2 + u1 * m2["REAL"]
+        match_fake = m1["FAKE"] * m2["FAKE"] + m1["FAKE"] * u2 + u1 * m2["FAKE"]
+        match_uncertain = u1 * u2
+        
+        # Calculate conflict (when they disagree)
+        conflict = (m1["REAL"] * m2["FAKE"]) + (m1["FAKE"] * m2["REAL"])
+        
+        # Normalization factor
+        k = 1.0 - conflict
+        
+        if k <= self.epsilon:
+            # Complete conflict - nothing can be concluded
             return {
                 "REAL": 0.0,
                 "FAKE": 0.0,
                 "UNCERTAIN": 1.0,
-                "conflict": 1.0,
+                "conflict": 1.0
             }
-
-        # Intersections that yield {REAL}
-        raw_real = (m1_real * m2_real) + (m1_real * m2_unc) + (m1_unc * m2_real)
-
-        # Intersections that yield {FAKE}
-        raw_fake = (m1_fake * m2_fake) + (m1_fake * m2_unc) + (m1_unc * m2_fake)
-
-        # Intersections that yield {UNCERTAIN}
-        raw_unc = m1_unc * m2_unc
-
-        combined_real = round(raw_real / norm, 6)
-        combined_fake = round(raw_fake / norm, 6)
-        combined_unc = round(raw_unc / norm, 6)
-
-        return {
-            "REAL": combined_real,
-            "FAKE": combined_fake,
-            "UNCERTAIN": combined_unc,
-            "conflict": round(conflict, 6),
+        
+        # Apply Dempster's Rule: normalize by 1-K
+        combined = {
+            "REAL": match_real / k,
+            "FAKE": match_fake / k,
+            "UNCERTAIN": match_uncertain / k,
+            "conflict": conflict
         }
-
-    def combine_all_evidence(self, masses_list: List[Dict[str, float]]) -> Dict[str, float]:
-        """Iteratively combine a list of mass functions using Dempster's Rule."""
+        
+        return combined
+    
+    def combine_all_evidence(self, masses_list: List[Dict]) -> Dict[str, float]:
+        """
+        Combine multiple mass functions (from multiple FAISS results)
+        Iteratively applies Dempster's Rule
+        
+        Args:
+            masses_list: List of mass function dictionaries
+        
+        Returns:
+            Combined final belief. "conflict" is the total conflict
+            accumulated across all pairwise combinations.
+        """
+        
         if not masses_list:
-            return {"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0, "conflict": 0.0}
-
-        if len(masses_list) == 1:
-            res = dict(masses_list[0])
-            if "UNCERTAIN" not in res:
-                res["UNCERTAIN"] = round(1.0 - res.get("REAL", 0.0) - res.get("FAKE", 0.0), 6)
-            if "conflict" not in res:
-                res["conflict"] = 0.0
-            return res
-
-        combined = dict(masses_list[0])
-        max_conflict = 0.0
-
+            return {"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0, "conflict": 0.0, "error": "No evidence provided"}
+        
+        # Start with first mass
+        combined = {
+            "REAL": masses_list[0]["REAL"],
+            "FAKE": masses_list[0]["FAKE"],
+            "UNCERTAIN": self._uncertain_mass(masses_list[0]),
+            "conflict": 0.0
+        }
+        
+        # Iteratively combine with each subsequent mass
+        agreement = 1.0
         for i in range(1, len(masses_list)):
             combined = self.dempster_combine(combined, masses_list[i])
-            if combined.get("conflict", 0.0) > max_conflict:
-                max_conflict = combined["conflict"]
-
-        combined["conflict"] = round(max_conflict, 6)
+            agreement *= 1.0 - combined["conflict"]
+        combined["conflict"] = 1.0 - agreement
+        
         return combined
 
     def get_belief_strength(self, mass_dict: Dict) -> str:
-        """Get human-readable belief strength description."""
-        real_belief = mass_dict.get("REAL", 0.0)
-        fake_belief = mass_dict.get("FAKE", 0.0)
-
-        if real_belief >= 0.80:
+        """
+        Get human-readable belief strength description
+        
+        Uses the pignistic probability BetP(REAL) = m(REAL) + m(UNCERTAIN)/2,
+        so ignorance is split evenly instead of counting against REAL.
+        
+        Args:
+            mass_dict: Combined mass dictionary
+        
+        Returns:
+            String describing belief strength
+        """
+        uncertain = self._uncertain_mass(mass_dict) if "REAL" in mass_dict and "FAKE" in mass_dict else 1.0
+        if uncertain >= 0.6:
+            return "UNCERTAIN - Insufficient evidence"
+        
+        real_belief = mass_dict.get("REAL", 0.0) + uncertain / 2.0
+        
+        if real_belief >= 0.85:
             return "VERY STRONG - Real"
-        elif real_belief >= 0.60:
+        elif real_belief >= 0.70:
             return "STRONG - Real"
-        elif fake_belief >= 0.80:
+        elif real_belief >= 0.60:
+            return "MODERATE - Real"
+        elif real_belief <= 0.15:
             return "VERY STRONG - Fake"
-        elif fake_belief >= 0.60:
+        elif real_belief <= 0.30:
             return "STRONG - Fake"
+        elif real_belief <= 0.40:
+            return "MODERATE - Fake"
         else:
-            return "UNCERTAIN - Mixed Evidence"
+            return "UNCERTAIN - Conflicting"
 
     def get_conflict_info(self, mass_dict: Dict) -> str:
         """Describe what the conflict factor means."""
