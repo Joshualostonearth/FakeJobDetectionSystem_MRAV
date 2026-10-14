@@ -12,23 +12,26 @@ Weak evidence leaves most of its mass on UNCERTAIN instead of pushing it
 onto the opposite hypothesis.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class DSTEngine:
     """
-    Dempster-Shafer Theory implementation for combining evidence
-    Handles mass function assignment and Dempster's Rule combination
+    Dempster-Shafer Theory implementation for combining evidence.
+    Handles 3-focal-element mass functions m({REAL}), m({FAKE}), m({UNCERTAIN})
+    and calculates combined belief with conflict tracking (K).
     """
-    
+
     def __init__(self):
-        self.epsilon = 1e-10  # Prevent division by zero
-    
-    def assign_mass_function(self, 
-                            similarity_score: float,
-                            source_type: str,
-                            is_fraudulent: int,
-                            metadata_quality: float = 0.7) -> Dict[str, float]:
+        self.epsilon = 1e-10
+
+    def assign_mass_function(
+        self,
+        similarity_score: float,
+        source_type: str,
+        is_fraudulent: int,
+        metadata_quality: float = 0.7,
+    ) -> Dict[str, float]:
         """
         Assign mass function m({REAL}), m({FAKE}), m({REAL, FAKE}) based on evidence
         
@@ -85,7 +88,7 @@ class DSTEngine:
             "FAKE": mass_fake,
             "UNCERTAIN": 1.0 - evidence_strength,
             "source": source_type,
-            "strength": evidence_strength
+            "strength": round(evidence_strength, 4),
         }
     
     def _uncertain_mass(self, m: Dict) -> float:
@@ -96,17 +99,15 @@ class DSTEngine:
     
     def dempster_combine(self, m1: Dict, m2: Dict) -> Dict[str, float]:
         """
-        Combine two mass functions using Dempster's Rule
-        
-        Formula: m₁₂(A) = (1/(1-K)) × Σ [m₁(B) × m₂(C)] where B ∩ C = A
-        K = conflict factor (when evidence disagrees)
-        
-        Args:
-            m1: First mass function
-            m2: Second mass function
-        
-        Returns:
-            Combined mass function
+        Combine two 3-focal mass functions m1 and m2 using Dempster's Rule of Combination.
+
+        Formula:
+            K (conflict) = m1(REAL)*m2(FAKE) + m1(FAKE)*m2(REAL)
+            1 - K = Normalisation factor
+
+            m12(REAL)      = [m1(REAL)*m2(REAL) + m1(REAL)*m2(UNCERTAIN) + m1(UNCERTAIN)*m2(REAL)] / (1 - K)
+            m12(FAKE)      = [m1(FAKE)*m2(FAKE) + m1(FAKE)*m2(UNCERTAIN) + m1(UNCERTAIN)*m2(FAKE)] / (1 - K)
+            m12(UNCERTAIN) = [m1(UNCERTAIN)*m2(UNCERTAIN)] / (1 - K)
         """
         u1 = self._uncertain_mass(m1)
         u2 = self._uncertain_mass(m2)
@@ -174,7 +175,7 @@ class DSTEngine:
         combined["conflict"] = 1.0 - agreement
         
         return combined
-    
+
     def get_belief_strength(self, mass_dict: Dict) -> str:
         """
         Get human-readable belief strength description
@@ -208,16 +209,30 @@ class DSTEngine:
             return "MODERATE - Fake"
         else:
             return "UNCERTAIN - Conflicting"
-    
+
     def get_conflict_info(self, mass_dict: Dict) -> str:
-        """
-        Describe what the conflict factor means
-        """
-        conflict = mass_dict.get("conflict", 0)
-        
+        """Describe what the conflict factor means."""
+        conflict = mass_dict.get("conflict", 0.0)
         if conflict > 0.5:
             return "HIGH CONFLICT - Strong disagreement between sources"
         elif conflict > 0.2:
             return "MODERATE CONFLICT - Some disagreement"
         else:
             return "LOW CONFLICT - Sources mostly agree"
+
+
+# ──────────────────────────────────────────────────────────
+# Person 3 Standard Standalone Deliverable Functions
+# ──────────────────────────────────────────────────────────
+
+_default_engine = DSTEngine()
+
+
+def combine_two(m1: Dict[str, float], m2: Dict[str, float]) -> Dict[str, float]:
+    """Combines two mass functions and exposes conflict value K."""
+    return _default_engine.dempster_combine(m1, m2)
+
+
+def combine_all(masses_list: List[Dict[str, float]]) -> Dict[str, float]:
+    """Combines a list of mass functions (registry, linkedin, scam-reports, voice)."""
+    return _default_engine.combine_all_evidence(masses_list)
