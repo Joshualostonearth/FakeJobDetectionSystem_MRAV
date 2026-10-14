@@ -39,3 +39,6 @@ share/python-wheels/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# start_all.sh service logs
+logs/
