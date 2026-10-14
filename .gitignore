@@ -42,3 +42,7 @@ Thumbs.db
 
 # start_all.sh service logs
 logs/
+
+# Per-call generated audio/recordings (keep the .gitkeep placeholders)
+objective3_voice_agent/temp/*/*
+!objective3_voice_agent/temp/*/.gitkeep
