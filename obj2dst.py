@@ -157,7 +157,7 @@ class DSTEngine:
         """
         
         if not masses_list:
-            return {"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0, "error": "No evidence provided"}
+            return {"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0, "conflict": 0.0, "error": "No evidence provided"}
         
         # Start with first mass
         combined = {

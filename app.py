@@ -358,6 +358,9 @@ if "voice_result" not in st.session_state:
 if "voice_error" not in st.session_state:
     st.session_state.voice_error = None
 
+if "auto_call_pending" not in st.session_state:
+    st.session_state.auto_call_pending = False
+
 
 # 5. Header Component
 st.markdown(
@@ -410,6 +413,7 @@ if reset_clicked:
     st.session_state.error_message = None
     st.session_state.voice_result = None
     st.session_state.voice_error = None
+    st.session_state.auto_call_pending = False
     st.rerun()
 
 
@@ -442,9 +446,12 @@ if analyze_clicked:
                 )
                 st.session_state.analysis_result = result
                 st.session_state.error_message = None
+                # High-risk offers go straight to phone verification
+                st.session_state.auto_call_pending = bool(result.get("auto_call"))
             except Exception as err:
                 st.session_state.analysis_result = None
                 st.session_state.error_message = str(err)
+                st.session_state.auto_call_pending = False
 
 
 # 9. Error Display
@@ -553,7 +560,12 @@ if res:
     # 11. Phone Verification (Objective 3 + DST)
     st.markdown('<div class="ui-card"><div class="ui-card-title">3. Phone Verification</div>', unsafe_allow_html=True)
 
-    if res.get("voice_recommended"):
+    if res.get("auto_call"):
+        st.markdown(
+            f"<p>Risk level is <b>{html.escape(res.get('risk_level', ''))}</b>. A verification call to the company is started automatically.</p>",
+            unsafe_allow_html=True,
+        )
+    elif res.get("voice_recommended"):
         st.markdown(
             f"<p>Risk level is <b>{html.escape(res.get('risk_level', ''))}</b>. A verification call to the company is recommended.</p>",
             unsafe_allow_html=True,
@@ -570,7 +582,11 @@ if res:
 
     verify_clicked = st.button("Verify by Phone", type="primary", use_container_width=True)
 
-    if verify_clicked:
+    # Run once per analysis: either the user clicked, or Obj2 flagged high risk
+    start_call = verify_clicked or st.session_state.auto_call_pending
+    st.session_state.auto_call_pending = False
+
+    if start_call:
         st.session_state.voice_result = None
         st.session_state.voice_error = None
         with st.spinner("Running verification call — answer it at http://localhost:3000 ..."):

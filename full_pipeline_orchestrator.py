@@ -58,6 +58,12 @@ def run_full_pipeline(
         evidence_masses.append(mass)
 
     # ── Step 4: Objective 3 — Voice Mass Integration (Person 2) ────────
+    # Obj2's routing decides whether voice evidence is used at all
+    voice_routed = credibility_output.routing_decision == "PROCEED_TO_VOICE_VERIFICATION"
+    if voice_analysis_override and not voice_routed:
+        print(f"\n[Obj 3 Skipped] Routing decision is {credibility_output.routing_decision}; ignoring voice analysis.")
+        voice_analysis_override = None
+
     if voice_analysis_override:
         print("\n[Obj 3 Voice Integration] Processing voice verification transcript analysis...")
         voice_mass = voice_transcript_to_mass(voice_analysis_override)

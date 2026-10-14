@@ -30,6 +30,8 @@ from voice_verification_bridge import check_voice_services, verify_offer_by_phon
 
 # Risk levels from Run_Objective_2_Filter that warrant phone verification
 VOICE_VERIFICATION_RISK_LEVELS = ("HIGH RISK", "MEDIUM RISK")
+# Risk levels that start the verification call without waiting for the user
+AUTO_CALL_RISK_LEVELS = ("HIGH RISK",)
 
 
 def check_ollama_service(host: str = "http://localhost:11434", timeout: float = 2.0) -> bool:
@@ -196,6 +198,7 @@ def handle_ui_submission(
         "trust_score": float(results_obj2.get("final_trust_score", 0.0)),
         "risk_level": risk_level,
         "voice_recommended": risk_level in VOICE_VERIFICATION_RISK_LEVELS,
+        "auto_call": risk_level in AUTO_CALL_RISK_LEVELS,
         "flags": list(results_obj2.get("flags_raised", [])),
         "explanation": str(results_obj2.get("mrav_explanation", "No explanation available.")),
         "extracted_entities": entities_dict,
