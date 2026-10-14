@@ -46,3 +46,6 @@ logs/
 # Per-call generated audio/recordings (keep the .gitkeep placeholders)
 objective3_voice_agent/temp/*/*
 !objective3_voice_agent/temp/*/.gitkeep
+
+# WhisperLive transcription output (rewritten on every call)
+output.srt
