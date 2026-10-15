@@ -1,0 +1,295 @@
+{
+  "dataset": {
+    "rows_evaluated": 1000,
+    "label_counts": {
+      "real_0": 951,
+      "fake_1": 49
+    },
+    "positive_class": "fake (fraudulent=1)"
+  },
+  "errors": {
+    "app": 0,
+    "evidence_dst": 0,
+    "orchestrator": 0
+  },
+  "llm_outputs_cached_rows": 0,
+  "obj1a_entity_extraction": {
+    "note": "EMSCAD has no gold entity annotations, so extraction coverage is reported, not accuracy.",
+    "field_non_empty_rate": {
+      "company_name": 0.0,
+      "job_role": 0.795,
+      "recruiter_name": 0.016,
+      "recruiter_email": 0.031,
+      "domain_or_website": 0.174,
+      "location": 0.776
+    }
+  },
+  "obj1b_retrieval_top1_neighbour": {
+    "n": 1000,
+    "accuracy": 0.941,
+    "balanced_accuracy": 0.5915,
+    "precision_fake": 0.3333,
+    "recall_fake": 0.2041,
+    "f1_fake": 0.2532,
+    "precision_real": 0.9598,
+    "recall_real": 0.979,
+    "f1_real": 0.9693,
+    "precision_macro": 0.6466,
+    "recall_macro": 0.5915,
+    "f1_macro": 0.6112,
+    "f1_weighted": 0.9342,
+    "mcc": 0.2316,
+    "false_positive_rate": 0.021,
+    "confusion_matrix": {
+      "tn_real_as_real": 931,
+      "fp_real_as_fake": 20,
+      "fn_fake_as_real": 39,
+      "tp_fake_as_fake": 10
+    }
+  },
+  "obj2_app_filter": {
+    "risk_level_distribution": {
+      "real": {
+        "LOW RISK": 931,
+        "HIGH RISK": 20
+      },
+      "fake": {
+        "HIGH RISK": 10,
+        "LOW RISK": 39
+      }
+    },
+    "fake_if_HIGH_RISK": {
+      "n": 1000,
+      "accuracy": 0.941,
+      "balanced_accuracy": 0.5915,
+      "precision_fake": 0.3333,
+      "recall_fake": 0.2041,
+      "f1_fake": 0.2532,
+      "precision_real": 0.9598,
+      "recall_real": 0.979,
+      "f1_real": 0.9693,
+      "precision_macro": 0.6466,
+      "recall_macro": 0.5915,
+      "f1_macro": 0.6112,
+      "f1_weighted": 0.9342,
+      "mcc": 0.2316,
+      "false_positive_rate": 0.021,
+      "confusion_matrix": {
+        "tn_real_as_real": 931,
+        "fp_real_as_fake": 20,
+        "fn_fake_as_real": 39,
+        "tp_fake_as_fake": 10
+      },
+      "roc_auc": 0.5915,
+      "pr_auc": 0.107
+    },
+    "fake_if_HIGH_or_MEDIUM_RISK": {
+      "n": 1000,
+      "accuracy": 0.941,
+      "balanced_accuracy": 0.5915,
+      "precision_fake": 0.3333,
+      "recall_fake": 0.2041,
+      "f1_fake": 0.2532,
+      "precision_real": 0.9598,
+      "recall_real": 0.979,
+      "f1_real": 0.9693,
+      "precision_macro": 0.6466,
+      "recall_macro": 0.5915,
+      "f1_macro": 0.6112,
+      "f1_weighted": 0.9342,
+      "mcc": 0.2316,
+      "false_positive_rate": 0.021,
+      "confusion_matrix": {
+        "tn_real_as_real": 931,
+        "fp_real_as_fake": 20,
+        "fn_fake_as_real": 39,
+        "tp_fake_as_fake": 10
+      },
+      "roc_auc": 0.5915,
+      "pr_auc": 0.107
+    },
+    "flag_frequency": {
+      "WARNING: Company/Organization name could not be reliably extracted from document": 1000,
+      "CRITICAL: Top similarity match in FAISS database is a known fraudulent listing": 30
+    },
+    "mrav_llm_verdict": {
+      "note": "VERDICT line of the M-RAV explanation (display-only, does not change the trust score).",
+      "rows_with_llm_output": 0,
+      "unparseable": 0,
+      "distribution": {
+        "real": {},
+        "fake": {}
+      },
+      "fake_if_SUSPICIOUS_or_FRAUDULENT": null,
+      "fake_if_FRAUDULENT": null
+    }
+  },
+  "obj4_evidence_dst_without_voice": {
+    "verdict_distribution": {
+      "real": {
+        "UNCERTAIN - Conflicting": 98,
+        "STRONG - Real": 557,
+        "MODERATE - Real": 79,
+        "VERY STRONG - Real": 24,
+        "UNCERTAIN - No evidence to combine": 193
+      },
+      "fake": {
+        "UNCERTAIN - Conflicting": 21,
+        "STRONG - Real": 13,
+        "MODERATE - Real": 2,
+        "MODERATE - Fake": 1,
+        "UNCERTAIN - No evidence to combine": 12
+      }
+    },
+    "abstention_rate": 0.324,
+    "fake_if_BetP_fake_ge_0.5_all_rows": {
+      "n": 1000,
+      "accuracy": 0.737,
+      "balanced_accuracy": 0.6972,
+      "precision_fake": 0.1151,
+      "recall_fake": 0.6531,
+      "f1_fake": 0.1957,
+      "precision_real": 0.9765,
+      "recall_real": 0.7413,
+      "f1_real": 0.8428,
+      "precision_macro": 0.5458,
+      "recall_macro": 0.6972,
+      "f1_macro": 0.5193,
+      "f1_weighted": 0.8111,
+      "mcc": 0.19,
+      "false_positive_rate": 0.2587,
+      "confusion_matrix": {
+        "tn_real_as_real": 705,
+        "fp_real_as_fake": 246,
+        "fn_fake_as_real": 17,
+        "tp_fake_as_fake": 32
+      },
+      "roc_auc": 0.7483,
+      "pr_auc": 0.3003
+    },
+    "on_decided_only": {
+      "n": 676,
+      "accuracy": 0.9778,
+      "balanced_accuracy": 0.5312,
+      "precision_fake": 1.0,
+      "recall_fake": 0.0625,
+      "f1_fake": 0.1176,
+      "precision_real": 0.9778,
+      "recall_real": 1.0,
+      "f1_real": 0.9888,
+      "precision_macro": 0.9889,
+      "recall_macro": 0.5312,
+      "f1_macro": 0.5532,
+      "f1_weighted": 0.9681,
+      "mcc": 0.2472,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 660,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 15,
+        "tp_fake_as_fake": 1
+      }
+    }
+  },
+  "obj2_obj4_final_verdict_without_voice": {
+    "routing_distribution": {
+      "real": {
+        "PROCEED_TO_VOICE_VERIFICATION": 951
+      },
+      "fake": {
+        "PROCEED_TO_VOICE_VERIFICATION": 49
+      }
+    },
+    "final_verdict_distribution": {
+      "real": {
+        "HIGH_RISK_SCAM": 712,
+        "UNCERTAIN_NEEDS_VERIFICATION": 239
+      },
+      "fake": {
+        "HIGH_RISK_SCAM": 48,
+        "UNCERTAIN_NEEDS_VERIFICATION": 1
+      }
+    },
+    "override_applied_rate": 0.76,
+    "is_scam_all_rows": {
+      "n": 1000,
+      "accuracy": 0.287,
+      "balanced_accuracy": 0.6155,
+      "precision_fake": 0.0632,
+      "recall_fake": 0.9796,
+      "f1_fake": 0.1187,
+      "precision_real": 0.9958,
+      "recall_real": 0.2513,
+      "f1_real": 0.4013,
+      "precision_macro": 0.5295,
+      "recall_macro": 0.6155,
+      "f1_macro": 0.26,
+      "f1_weighted": 0.3875,
+      "mcc": 0.1167,
+      "false_positive_rate": 0.7487,
+      "confusion_matrix": {
+        "tn_real_as_real": 239,
+        "fp_real_as_fake": 712,
+        "fn_fake_as_real": 1,
+        "tp_fake_as_fake": 48
+      },
+      "roc_auc": 0.6156,
+      "pr_auc": 0.063
+    },
+    "abstention_rate_UNCERTAIN_NEEDS_VERIFICATION": 0.24,
+    "on_decided_only": {
+      "n": 760,
+      "accuracy": 0.0632,
+      "balanced_accuracy": 0.5,
+      "precision_fake": 0.0632,
+      "recall_fake": 1.0,
+      "f1_fake": 0.1188,
+      "precision_real": 0.0,
+      "recall_real": 0.0,
+      "f1_real": 0.0,
+      "precision_macro": 0.0316,
+      "recall_macro": 0.5,
+      "f1_macro": 0.0594,
+      "f1_weighted": 0.0075,
+      "mcc": 0.0,
+      "false_positive_rate": 1.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 0,
+        "fp_real_as_fake": 712,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 48
+      }
+    },
+    "platt_calibration": {
+      "brier_score_p_real": 0.4885,
+      "ece_p_real": 0.6435,
+      "reliability_bins": [
+        {
+          "bin": "[0.2,0.3)",
+          "count": 760,
+          "mean_predicted_p_real": 0.2,
+          "observed_fraction_real": 0.9368
+        },
+        {
+          "bin": "[0.5,0.6)",
+          "count": 81,
+          "mean_predicted_p_real": 0.5726,
+          "observed_fraction_real": 1.0
+        },
+        {
+          "bin": "[0.6,0.7)",
+          "count": 66,
+          "mean_predicted_p_real": 0.6481,
+          "observed_fraction_real": 0.9848
+        },
+        {
+          "bin": "[0.7,0.8)",
+          "count": 93,
+          "mean_predicted_p_real": 0.7129,
+          "observed_fraction_real": 1.0
+        }
+      ]
+    },
+    "mrav_alignment_hypotheses": {}
+  }
+}

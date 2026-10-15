@@ -17,9 +17,15 @@ from confidence_calibrator import calculate_confidence_score, apply_verification
 from objective3_voice_agent.voice_to_mass import voice_transcript_to_mass, voice_result_to_analysis
 
 
+# How much the text classifier is trusted as a DST source (rest of its mass is ignorance)
+CLASSIFIER_RELIABILITY: float = 0.9
+
+
 def run_full_pipeline(
     raw_payload: Dict[str, Any],
     voice_analysis_override: Optional[Dict[str, Any]] = None,
+    offer_text: Optional[str] = None,
+    scam_probability: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Executes the end-to-end multi-objective Fake Job Detection & Verification pipeline.
@@ -27,6 +33,8 @@ def run_full_pipeline(
     Args:
         raw_payload: Dictionary conforming to Objective2InputPayload schema
         voice_analysis_override: Optional voice analysis dict to simulate or incorporate Objective 3 voice results
+        offer_text: Optional raw offer text; scored by the supervised text classifier (scam_classifier.py)
+        scam_probability: Optional precomputed classifier P(scam); takes precedence over offer_text
 
     Returns:
         Complete unified report dictionary with overall verdict, calibrated confidence score, DST masses, and flags.
@@ -56,6 +64,18 @@ def run_full_pipeline(
             metadata_quality=doc.authority,
         )
         evidence_masses.append(mass)
+
+    # ── Step 3b: Objective 1b — Supervised text classifier evidence ─────
+    if scam_probability is None and offer_text:
+        try:
+            from scam_classifier import predict_scam_probability
+            scam_probability = predict_scam_probability(offer_text)
+        except FileNotFoundError as e:
+            print(f"\n[Classifier Skipped] {e}")
+    if scam_probability is not None:
+        classifier_mass = dst_engine.classifier_mass(scam_probability, CLASSIFIER_RELIABILITY)
+        evidence_masses.append(classifier_mass)
+        print(f"\n[Classifier] P(scam)={scam_probability:.4f} -> REAL={classifier_mass['REAL']:.4f}, FAKE={classifier_mass['FAKE']:.4f}")
 
     # ── Step 4: Objective 3 — Voice Mass Integration (Person 2) ────────
     # Obj2's routing decides whether voice evidence is used at all
@@ -101,6 +121,7 @@ def run_full_pipeline(
 
     return {
         "offer_id": payload.offer_id,
+        "scam_probability": scam_probability,
         "obj2_credibility": credibility_output.model_dump(mode="json"),
         "dst_combined_masses": combined_dst,
         "final_verification": final_verdict_payload,

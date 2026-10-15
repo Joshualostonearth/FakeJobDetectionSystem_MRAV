@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from ocr_engine import init_ocr_reader, extract_text_from_image, merge_text_and_ocr
 from models import extract_entities_from_text, JobOfferEntities
 from search_engine import EvidenceRetriever
+from scam_classifier import predict_scam_probability
 from engines.credibility_engine import Run_Objective_2_Filter, OLLAMA_MODEL
 from voice_verification_bridge import check_voice_services, verify_offer_by_phone
 
@@ -158,11 +159,25 @@ def handle_ui_submission(
     except Exception as e:
         raise RuntimeError(f"Entity extraction failed: {str(e)}")
 
+    result = analyze_extracted_offer(merged_text, entities, retriever)
+    result["ocr_preview"] = ocr_preview
+    return result
+
+
+def analyze_extracted_offer(
+    merged_text: str,
+    entities: JobOfferEntities,
+    retriever: EvidenceRetriever,
+) -> Dict[str, Any]:
+    """
+    Steps 7-10 of handle_ui_submission: evidence retrieval, text classifier,
+    Objective 2 filter and the UI payload, for already-extracted entities.
+    """
     entities_dict = entities.model_dump()
 
-    # 7. Evidence Retrieval (Objective 1b)
+    # 7. Evidence Retrieval (Objective 1b) — the index stores full postings, so search with the full text
     try:
-        bundle = retriever.retrieve_evidence_bundle(entities, top_k=3)
+        bundle = retriever.retrieve_evidence_bundle(entities, top_k=3, query_text=merged_text)
         if bundle.get("status") == "FAILED":
             raise RuntimeError("FAISS similarity search returned FAILED status.")
     except Exception as e:
@@ -184,9 +199,16 @@ def handle_ui_submission(
     # Closest match first (lower L2 distance = more similar)
     retrieved_evidence.sort(key=lambda doc: doc["distance"])
 
+    # 8b. Supervised text classifier (Objective 1b); optional if the model has not been trained
+    try:
+        scam_probability = predict_scam_probability(merged_text)
+    except FileNotFoundError as e:
+        print(f"[Warning] {e}")
+        scam_probability = None
+
     # 9. Credibility Evaluation (Objective 2)
     try:
-        results_obj2 = Run_Objective_2_Filter(entities_dict, retrieved_evidence)
+        results_obj2 = Run_Objective_2_Filter(entities_dict, retrieved_evidence, scam_probability=scam_probability)
     except Exception as e:
         raise RuntimeError(f"Credibility evaluation failed: {str(e)}")
 
@@ -196,6 +218,7 @@ def handle_ui_submission(
     return {
         "offer_id": f"UI_{uuid.uuid4().hex[:8]}",
         "trust_score": float(results_obj2.get("final_trust_score", 0.0)),
+        "scam_probability": scam_probability,
         "risk_level": risk_level,
         "voice_recommended": risk_level in VOICE_VERIFICATION_RISK_LEVELS,
         "auto_call": risk_level in AUTO_CALL_RISK_LEVELS,
@@ -203,7 +226,6 @@ def handle_ui_submission(
         "explanation": str(results_obj2.get("mrav_explanation", "No explanation available.")),
         "extracted_entities": entities_dict,
         "retrieved_evidence": retrieved_evidence,
-        "ocr_preview": ocr_preview,
     }
 
 
@@ -229,4 +251,5 @@ def handle_phone_verification(
         entities=analysis_result["extracted_entities"],
         retrieved_evidence=analysis_result["retrieved_evidence"],
         suspicion_reasons=analysis_result.get("flags", []),
+        scam_probability=analysis_result.get("scam_probability"),
     )

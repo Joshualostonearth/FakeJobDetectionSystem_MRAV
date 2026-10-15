@@ -58,6 +58,12 @@ GAMMA: float = 0.4  # Consensus weight
 DISCARD_THRESHOLD: float = 0.3
 TRUSTED_THRESHOLD: float = 0.5
 
+# Raise a CRITICAL flag when the most similar retrieved document is an
+# EMSCAD listing labelled fraudulent (VectorDocument.similarity_score: higher = closer).
+# Off: on the EMSCAD validation split the nearest-neighbour label alone has 0.85
+# precision, and forcing a scam verdict on it lowered precision of the final verdict.
+CLOSEST_SCAM_MATCH_IS_CRITICAL: bool = False
+
 # Voice verification routing threshold:
 # If overall trust < this AND critical flags exist → route to Obj3
 VOICE_VERIFICATION_TRUST_THRESHOLD: float = 0.6
@@ -133,12 +139,22 @@ def _generate_flags(
             )
         )
 
-    # EMSCAD Scam Pattern Trigger
-    if doc.metadata.fraudulent == 1 or doc.metadata.source_type in ("scam_report", "scam_report_forum"):
+    # Scam evidence. An EMSCAD record labelled fraudulent is only a *similar*
+    # posting (retrieval always returns the nearest scam records), so on its own
+    # it is a warning; evaluate_credibility() escalates it when it is the closest
+    # match. A scam report about this offer (no EMSCAD label) stays critical.
+    if doc.metadata.fraudulent == 1:
+        flags.append(
+            CredibilityFlag(
+                severity="WARNING",
+                message=f"Similar known fraudulent listing retrieved from EMSCAD records (doc: {doc.doc_id})",
+            )
+        )
+    elif doc.metadata.source_type in ("scam_report", "scam_report_forum"):
         flags.append(
             CredibilityFlag(
                 severity="CRITICAL",
-                message=f"High-risk SCAM pattern detected from EMSCAD records (doc: {doc.doc_id})",
+                message=f"High-risk SCAM pattern detected from scam report (doc: {doc.doc_id})",
             )
         )
 
@@ -305,14 +321,25 @@ def evaluate_credibility(payload: Objective2InputPayload) -> Objective2OutputPay
             f"[{evaluated.credibility_tier.upper()}]"
         )
 
+    # The closest match being a known fraudulent EMSCAD listing is a strong signal
+    closest = max(all_docs, key=lambda d: d.similarity_score, default=None)
+    if CLOSEST_SCAM_MATCH_IS_CRITICAL and closest is not None and closest.metadata.fraudulent == 1:
+        all_flags.append(
+            CredibilityFlag(
+                severity="CRITICAL",
+                message=f"Closest evidence match is a known fraudulent EMSCAD listing (doc: {closest.doc_id})",
+            )
+        )
+
     # Compute overall trust score as weighted average of non-discarded docs
     if evaluated_docs:
         overall_trust = sum(d.credibility_index for d in evaluated_docs) / len(evaluated_docs)
     else:
+        # No usable evidence means "cannot tell", not "scam"
         overall_trust = 0.0
         all_flags.append(
             CredibilityFlag(
-                severity="CRITICAL",
+                severity="WARNING",
                 message="All evidence documents were discarded — no trusted evidence found",
             )
         )

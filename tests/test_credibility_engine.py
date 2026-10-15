@@ -118,7 +118,7 @@ class TestCredibilityEngine:
         result = evaluate_credibility(payload)
 
         assert result.offer_id == "TEST_001"
-        assert result.routing_decision == "PROCEED_TO_CONFIDENCE_FRAMEWORK"
+        assert result.routing_decision == "PROCEED_TO_VOICE_VERIFICATION"
         assert 0.0 <= result.credibility_evaluation.overall_trust_score <= 1.0
         assert isinstance(result.credibility_evaluation.flags_triggered, list)
         assert isinstance(result.evaluated_evidence, list)
@@ -223,8 +223,8 @@ class TestCredibilityEngine:
         assert len(result.evaluated_evidence) == 0
 
     @patch("credibility_engine.generate_alignment_triple", side_effect=_mock_alignment_triple)
-    def test_routing_always_confidence_framework(self, mock_alignment):
-        """Routing should always be PROCEED_TO_CONFIDENCE_FRAMEWORK."""
+    def test_routing_critical_flags_to_voice(self, mock_alignment):
+        """Critical flags (domain mismatch, scam report) route the offer to voice verification."""
         payload = _build_test_payload()
         result = evaluate_credibility(payload)
-        assert result.routing_decision == "PROCEED_TO_CONFIDENCE_FRAMEWORK"
+        assert result.routing_decision == "PROCEED_TO_VOICE_VERIFICATION"

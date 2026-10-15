@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from models import JobOfferEntities
@@ -27,10 +27,15 @@ class EvidenceRetriever:
             except Exception as e:
                 print(f"[Error] Failed to load FAISS index from '{index_folder}': {e}")
 
-    def retrieve_evidence_bundle(self, entities: JobOfferEntities, top_k: int = 5) -> Dict[str, Any]:
+    def retrieve_evidence_bundle(
+        self, entities: JobOfferEntities, top_k: int = 5, query_text: Optional[str] = None
+    ) -> Dict[str, Any]:
         """
-        Executes targeted searches using OCR-extracted entities and returns 
-        structured evidence for Objective 2.
+        Executes targeted searches and returns structured evidence for Objective 2.
+
+        If query_text (the full offer text) is given it is used as the search query,
+        since the index stores full postings; otherwise the query is built from the
+        extracted entities.
         """
         if not self.vector_db:
             print("[Error] Vector database is not loaded. Returning empty bundle.")
@@ -48,9 +53,12 @@ class EvidenceRetriever:
             # Both categories are searched with the same query so their
             # distances are directly comparable when ranking the top match.
             contact_info = getattr(entities, "email_or_phone", None) or getattr(entities, "recruiter_email", "") or ""
-            query = " ".join(
-                part for part in (entities.company_name, entities.job_role, entities.location, contact_info) if part
-            ).strip()
+            if query_text and query_text.strip():
+                query = query_text.strip()
+            else:
+                query = " ".join(
+                    part for part in (entities.company_name, entities.job_role, entities.location, contact_info) if part
+                ).strip()
             if query:
                 # 1. Legitimate Job Record Query (Baseline)
                 legit_results = self.vector_db.similarity_search_with_score(

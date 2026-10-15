@@ -91,6 +91,24 @@ class DSTEngine:
             "strength": round(evidence_strength, 4),
         }
     
+    def classifier_mass(self, prob_fake: float, reliability: float = 0.9) -> Dict[str, float]:
+        """
+        Mass function for the supervised text classifier (scam_classifier.py).
+
+        The classifier gives a calibrated P(FAKE), so it supports both hypotheses:
+            m({FAKE}) = r * p,  m({REAL}) = r * (1 - p),  m({REAL, FAKE}) = 1 - r
+        where r is how much the classifier is trusted as a source.
+        """
+        p = max(0.0, min(float(prob_fake), 1.0))
+        r = max(0.0, min(float(reliability), 1.0))
+        return {
+            "REAL": r * (1.0 - p),
+            "FAKE": r * p,
+            "UNCERTAIN": 1.0 - r,
+            "source": "text_classifier",
+            "strength": round(r, 4),
+        }
+
     def _uncertain_mass(self, m: Dict) -> float:
         """m({REAL, FAKE}); derived from REAL/FAKE for masses without an UNCERTAIN key."""
         if "UNCERTAIN" in m:

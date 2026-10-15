@@ -319,10 +319,11 @@ def verify_offer_by_phone(
     retrieved_evidence: list,
     suspicion_reasons: Optional[list] = None,
     voice_config: Optional[dict] = None,
+    scam_probability: Optional[float] = None,
 ) -> dict:
     """
     Run voice verification for an offer analysed by the Streamlit UI and
-    combine it with the FAISS evidence via DST.
+    combine it with the FAISS evidence (and the text classifier, if given) via DST.
 
     Args:
         offer_id:           Identifier for this offer (used in the claim ID)
@@ -365,6 +366,12 @@ def verify_offer_by_phone(
         )
         masses.append(mass)
         print(f"  📄 {source_type}: REAL={mass['REAL']:.3f}, FAKE={mass['FAKE']:.3f}")
+
+    if scam_probability is not None:
+        from full_pipeline_orchestrator import CLASSIFIER_RELIABILITY
+        mass = dst.classifier_mass(scam_probability, CLASSIFIER_RELIABILITY)
+        masses.append(mass)
+        print(f"  🧮 text_classifier: REAL={mass['REAL']:.3f}, FAKE={mass['FAKE']:.3f}")
 
     print("\n--- Bridge Step 2: Running Voice Verification (Objective 3) ---")
     _run_voice_step(result, masses, entities, voice_config, suspicion_reasons)

@@ -12,7 +12,7 @@ def clean_html(raw_html: str) -> str:
     soup = BeautifulSoup(raw_html, "html.parser")
     return soup.get_text(separator=" ").strip()
 
-def build_faiss_from_emscad_csv(csv_path: str = "data/DataSet.csv", save_dir: str = "faiss_index"):
+def build_faiss_from_emscad_csv(csv_path: str = "data/splits/train.csv", save_dir: str = "faiss_index"):
     print(f"1. Reading CSV from '{csv_path}'...")
     
     if not os.path.exists(csv_path):
@@ -77,5 +77,5 @@ def build_faiss_from_emscad_csv(csv_path: str = "data/DataSet.csv", save_dir: st
     print(f"✅ SUCCESS: Saved FAISS Index to '{save_dir}/' folder!")
 
 if __name__ == "__main__":
-    # Corrected path to point to your data directory with exact uppercase DataSet.csv
-    build_faiss_from_emscad_csv(csv_path="data/DataSet.csv", save_dir="faiss_index")
+    # Index only the training split so validation/test postings are never their own evidence
+    build_faiss_from_emscad_csv(csv_path="data/splits/train.csv", save_dir="faiss_index")

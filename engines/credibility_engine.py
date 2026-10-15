@@ -93,7 +93,19 @@ RETRIEVED FAISS EVIDENCE:
 
 # --- 3. SYNTHESIZED CREDIBILITY CALCULATOR ---
 
-def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
+# Supervised text classifier (scam_classifier.py) thresholds on P(scam)
+CLASSIFIER_CRITICAL_THRESHOLD: float = 0.45
+CLASSIFIER_WARNING_THRESHOLD: float = 0.25
+CLASSIFIER_CRITICAL_PENALTY: float = 60.0
+CLASSIFIER_WARNING_PENALTY: float = 30.0
+
+# Trust penalty when the closest FAISS match is a known fraudulent listing.
+# 0 (warning only): on the EMSCAD validation split any penalty here added false
+# alarms without catching an extra scam once the text classifier is in place.
+TOP_MATCH_SCAM_PENALTY: float = 0.0
+
+
+def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list, scam_probability: float = None) -> dict:
     flags = []
     trust_score = 100.0  # Start at 100%
 
@@ -110,8 +122,17 @@ def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
     # Check 2: Top Match Known Scam Check (closest = lowest FAISS distance)
     top_match = min(retrieved_evidence, key=lambda d: d.get("distance", float("inf")), default=None)
     if top_match and top_match.get("metadata", {}).get("fraudulent") == 1:
-        flags.append("CRITICAL: Top similarity match in FAISS database is a known fraudulent listing")
-        trust_score -= 50.0
+        flags.append("WARNING: Top similarity match in FAISS database is a known fraudulent listing")
+        trust_score -= TOP_MATCH_SCAM_PENALTY
+
+    # Check 2b: Supervised text classifier trained on EMSCAD postings
+    if scam_probability is not None:
+        if scam_probability >= CLASSIFIER_CRITICAL_THRESHOLD:
+            flags.append(f"CRITICAL: Text classifier rates the posting as likely fraudulent (P(scam)={scam_probability:.2f})")
+            trust_score -= CLASSIFIER_CRITICAL_PENALTY
+        elif scam_probability >= CLASSIFIER_WARNING_THRESHOLD:
+            flags.append(f"WARNING: Text classifier finds scam-like wording (P(scam)={scam_probability:.2f})")
+            trust_score -= CLASSIFIER_WARNING_PENALTY
 
     # Check 3: M-RAV Ollama Consistency Analysis
     mrav_result = evaluate_mrav_consistency(entities, retrieved_evidence)
@@ -120,6 +141,7 @@ def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
     risk_level = "HIGH RISK" if final_score < 50 else ("MEDIUM RISK" if final_score < 75 else "LOW RISK")
 
     return {
+        "scam_probability": scam_probability,
         "final_trust_score": final_score,
         "risk_level": risk_level,
         "flags_raised": flags,

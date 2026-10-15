@@ -22,6 +22,21 @@ class JobOfferEntities(BaseModel):
         return self.recruiter_email
 
 
+# Placeholder strings some models emit instead of leaving a field empty
+_EMPTY_VALUES = {"", "none", "null", "n/a", "na", "unknown", "not specified", "not provided", "not mentioned"}
+
+
+def clean_entities(entities: JobOfferEntities) -> JobOfferEntities:
+    """Replace placeholder values such as "None" or "N/A" with empty fields."""
+    data = entities.model_dump()
+    for key, value in data.items():
+        if isinstance(value, str) and value.strip().lower() in _EMPTY_VALUES:
+            data[key] = "" if key in ("company_name", "job_role") else None
+        elif value is None and key in ("company_name", "job_role"):
+            data[key] = ""
+    return JobOfferEntities(**data)
+
+
 def extract_entities_from_text(text: str) -> JobOfferEntities:
     if not text or not text.strip():
         print("[Warning] Empty text provided for extraction.")
@@ -36,7 +51,7 @@ def extract_entities_from_text(text: str) -> JobOfferEntities:
             ("system", """You are a strict entity extraction assistant.
 
 Rules:
-1. 'company_name': ALWAYS check the top header or letterhead (e.g., 'Richmond College'). Do not return empty if an organization header exists at the top.
+1. 'company_name': The organization offering the job. ALWAYS check the top header or letterhead first (e.g., 'Richmond College'). If there is no letterhead, use the organization named in the company profile, description or sign-off. Never guess or reuse an example name; leave empty if no organization is named anywhere.
 2. 'job_role': Check the body or sign-off line (e.g., 'Administrative Officer').
 3. 'recruiter_name': Extract the full name of the recruiter or the person who signed the letter. Leave empty if no person is named.
 4. 'recruiter_email': Extract the contact email address.
@@ -48,7 +63,7 @@ Rules:
         
         extraction_chain = prompt | structured_llm
         result = extraction_chain.invoke({"text": text})
-        return result if result else JobOfferEntities()
+        return clean_entities(result) if result else JobOfferEntities()
     except Exception as e:
         print(f"[Error] LLM Extraction failed: {e}")
         return JobOfferEntities()

@@ -69,6 +69,11 @@ class PlattScaler:
             return False
 
 
+# Final-verdict bands on the (override-adjusted) calibrated P(Real)
+VERIFIED_REAL_MIN_CONFIDENCE: float = 0.75   # >= → VERIFIED_REAL
+SCAM_MAX_CONFIDENCE: float = 0.60            # <= → SUSPICIOUS_FAKE (is_scam); middle of the stable range on the validation split
+HIGH_RISK_MAX_CONFIDENCE: float = 0.25       # <= → HIGH_RISK_SCAM
+
 # Global singleton instance
 _platt_scaler = PlattScaler()
 
@@ -99,11 +104,22 @@ def generate_synthetic_validation_data() -> Tuple[np.ndarray, np.ndarray]:
     return X, y
 
 
-def fit_and_save_platt_model(filepath: Path = MODEL_FILE_PATH) -> PlattScaler:
-    """Fits Platt model on validation dataset and saves platt_model.pkl."""
-    X, y = generate_synthetic_validation_data()
+def fit_and_save_platt_model(
+    filepath: Path = MODEL_FILE_PATH,
+    scores: Optional[np.ndarray] = None,
+    labels: Optional[np.ndarray] = None,
+) -> PlattScaler:
+    """
+    Fits the Platt model and saves platt_model.pkl.
+
+    Pass real validation belief margins s = m(REAL) - m(FAKE) and labels
+    (1 = real, 0 = fake), e.g. from evaluate_test_split.py fit-platt. Without them it
+    falls back to the synthetic profiles, which are only a placeholder.
+    """
+    if scores is None or labels is None:
+        scores, labels = generate_synthetic_validation_data()
     scaler = PlattScaler()
-    scaler.fit(X, y)
+    scaler.fit(scores, labels)
     scaler.save(filepath)
     return scaler
 
@@ -185,26 +201,32 @@ def apply_verification_override(
 
     # 2. Critical Scam Flag Overrides from Objective 2
     if not override_applied and flags:
+        # Only flags marked CRITICAL count. Matching on words such as "SCAM" anywhere in
+        # the text let WARNING flags (e.g. an LLM explanation mentioning scams) force a verdict.
         critical_flags = [
             f for f in flags
             if (isinstance(f, dict) and f.get("severity") == "CRITICAL") or
                (hasattr(f, "severity") and f.severity == "CRITICAL") or
-               ("SCAM" in str(f).upper() or "DOMAIN MISMATCH" in str(f).upper())
+               (isinstance(f, str) and f.strip().upper().startswith("CRITICAL"))
         ]
         if critical_flags:
             override_applied = True
-            flag_msg = critical_flags[0].get("message") if isinstance(critical_flags[0], dict) else str(critical_flags[0])
+            first = critical_flags[0]
+            if isinstance(first, dict):
+                flag_msg = first.get("message")
+            else:
+                flag_msg = getattr(first, "message", str(first))
             override_reason = f"CRITICAL EVIDENCE OVERRIDE: {flag_msg}"
             final_conf = min(final_conf, 0.20)
 
     # 3. Determine Final Verdict Recommendation
-    if final_conf >= 0.75:
+    if final_conf >= VERIFIED_REAL_MIN_CONFIDENCE:
         verdict = "VERIFIED_REAL"
         is_scam = False
-    elif final_conf <= 0.25:
+    elif final_conf <= HIGH_RISK_MAX_CONFIDENCE:
         verdict = "HIGH_RISK_SCAM"
         is_scam = True
-    elif final_conf <= 0.45:
+    elif final_conf <= SCAM_MAX_CONFIDENCE:
         verdict = "SUSPICIOUS_FAKE"
         is_scam = True
     else:

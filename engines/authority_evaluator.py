@@ -30,6 +30,7 @@ SOURCE_TYPE_WEIGHTS: dict[str, float] = {
     "glassdoor": 0.50,
     "crunchbase": 0.50,
     "job_board": 0.50,
+    "legitimate_job_record": 0.50,  # EMSCAD labelled posting (job-board listing)
     "scam_report": 0.30,
     "scam_report_forum": 0.30,
     "reddit": 0.30,
@@ -44,6 +45,14 @@ TIER_WEIGHTS: dict[str, float] = {
     "community": 0.30,
 }
 
+# Tertiary mapping: numeric authority_tier (set by ingest_emscad.py) → weight
+AUTHORITY_TIER_WEIGHTS: dict[int, float] = {
+    1: 1.0,
+    2: 0.75,
+    3: 0.50,
+    4: 0.30,
+}
+
 # Default weight for completely unknown sources
 DEFAULT_WEIGHT: float = 0.20
 
@@ -54,8 +63,9 @@ def calculate_authority(metadata: RetrivedDocMetadata) -> float:
     source type and credibility tier metadata.
 
     The function first checks the `source_type` field against known
-    source types. If no match is found, it falls back to the
-    `credibility_tier` field. If neither matches, returns DEFAULT_WEIGHT.
+    source types. If no match is found, it falls back to the numeric
+    `authority_tier`, then to the `credibility_tier` field. If none
+    matches, returns DEFAULT_WEIGHT.
 
     Args:
         metadata: The document's metadata containing source_type and
@@ -68,6 +78,10 @@ def calculate_authority(metadata: RetrivedDocMetadata) -> float:
     source_type = metadata.source_type.lower().strip()
     if source_type in SOURCE_TYPE_WEIGHTS:
         return SOURCE_TYPE_WEIGHTS[source_type]
+
+    # Fallback to the numeric authority tier
+    if metadata.authority_tier in AUTHORITY_TIER_WEIGHTS:
+        return AUTHORITY_TIER_WEIGHTS[metadata.authority_tier]
 
     # Fallback to credibility_tier
     tier = (metadata.credibility_tier or "").lower().strip()

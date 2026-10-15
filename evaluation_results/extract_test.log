@@ -1,0 +1,26 @@
+[extract] model=llama3.2 rows=1000 done=0 todo=1000
+[extract] 10/1000 1.5s/row ETA 24 min
+[extract] 20/1000 1.5s/row ETA 24 min
+[extract] 30/1000 1.5s/row ETA 25 min
+[extract] 40/1000 1.5s/row ETA 24 min
+[extract] 50/1000 1.5s/row ETA 24 min
+[extract] 60/1000 1.6s/row ETA 25 min
+[extract] 70/1000 1.6s/row ETA 25 min
+[extract] 80/1000 1.6s/row ETA 25 min
+[extract] 90/1000 1.6s/row ETA 25 min
+[extract] 100/1000 1.7s/row ETA 25 min
+[extract] 110/1000 1.7s/row ETA 26 min
+[extract] 120/1000 1.8s/row ETA 26 min
+[extract] 130/1000 1.8s/row ETA 26 min
+[extract] 140/1000 1.8s/row ETA 25 min
+[extract] 150/1000 1.7s/row ETA 24 min
+[extract] 160/1000 1.7s/row ETA 24 min
+[extract] 170/1000 1.7s/row ETA 24 min
+[extract] 180/1000 1.7s/row ETA 23 min
+[extract] 190/1000 1.7s/row ETA 23 min
+[extract] 200/1000 1.7s/row ETA 23 min
+[extract] 210/1000 1.7s/row ETA 22 min
+[extract] 220/1000 1.7s/row ETA 22 min
+[extract] 230/1000 1.7s/row ETA 22 min
+[extract] 240/1000 1.7s/row ETA 22 min
+[extract] 250/1000 1.7s/row ETA 21 min

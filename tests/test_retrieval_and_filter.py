@@ -63,7 +63,7 @@ def test_top_match_scam_detected_even_when_listed_after_legit(_mock):
     evidence = [_doc(0, 1.2), _doc(0, 1.3), _doc(1, 0.4)]
     result = simple_engine.Run_Objective_2_Filter(ENTITIES, evidence)
     assert any("known fraudulent" in f for f in result["flags_raised"])
-    assert result["final_trust_score"] == 50.0
+    assert result["final_trust_score"] == 100.0 - simple_engine.TOP_MATCH_SCAM_PENALTY
 
 
 @patch.object(simple_engine, "evaluate_mrav_consistency", return_value={"mrav_analysis": "VERDICT: LEGITIMATE"})

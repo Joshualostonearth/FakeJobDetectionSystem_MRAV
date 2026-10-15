@@ -14,6 +14,10 @@ Weights (sum to 1.0):
     w2 = 0.30  (domain)
     w3 = 0.20  (email trust)
     w4 = 0.20  (location)
+
+A field that is missing on either side (e.g. EMSCAD records carry no company
+name or domain) cannot confirm or contradict the offer, so it contributes the
+neutral value NEUTRAL_SCORE instead of counting as a mismatch.
 """
 
 from typing import Optional
@@ -32,6 +36,9 @@ W_NAME: float = 0.30
 W_DOMAIN: float = 0.30
 W_EMAIL: float = 0.20
 W_LOCATION: float = 0.20
+
+# Contribution of a field that cannot be compared (missing on either side)
+NEUTRAL_SCORE: float = 0.5
 
 # Free email providers that should not be trusted for corporate claims
 FREE_EMAIL_PROVIDERS: set[str] = {
@@ -203,12 +210,20 @@ def calculate_consensus(
         location_match=location_match,
     )
 
+    # Fields missing on either side are neutral, not mismatches
+    name_known = bool((entities.company_name or "").strip() and doc.metadata.company_name)
+    domain_known = (
+        _extract_root_domain(entities.domain_or_website) is not None
+        and _extract_root_domain(doc.metadata.domain) is not None
+    )
+    location_known = bool((entities.location or "").strip())
+
     # Compute weighted consensus score
     consensus = (
-        W_NAME * name_score
-        + W_DOMAIN * (1.0 if domain_match else 0.0)
+        W_NAME * (name_score if name_known else NEUTRAL_SCORE)
+        + W_DOMAIN * ((1.0 if domain_match else 0.0) if domain_known else NEUTRAL_SCORE)
         + W_EMAIL * email_trust
-        + W_LOCATION * (1.0 if location_match else 0.0)
+        + W_LOCATION * ((1.0 if location_match else 0.0) if location_known else NEUTRAL_SCORE)
     )
 
     return consensus, breakdown
