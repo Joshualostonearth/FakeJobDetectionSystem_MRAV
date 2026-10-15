@@ -49,3 +49,7 @@ objective3_voice_agent/temp/*/*
 
 # WhisperLive transcription output (rewritten on every call)
 output.srt
+
+# Large archives (rebuild/unzip locally instead of committing)
+data.zip
+faiss_index.zip
