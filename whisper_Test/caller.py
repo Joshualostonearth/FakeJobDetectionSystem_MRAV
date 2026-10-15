@@ -59,11 +59,16 @@ RULES:
 
 CONTENT ORDER:
 - Question 1: Disclose you are an automated AI assistant calling on behalf of a candidate, then confirm you reached the right company.
+  You are calling the company, not calling from it: never say "calling from <company>".
 - Questions 2-3: Company identity (website, office location, registration).
 - Questions 4-6: Role details (job title, responsibilities, start date, salary).
 - Questions 7-8: Selection process (interview, documents, fees, payments).
 - Question 9: Communication and documents (official email, offer letter).
 - Question 10: Polite closing — ask for the official contact channel or next steps and thank them.
+
+OFFER TEXT: When the offer letter text is given, use it to choose what to ask about \
+(for example pay, unpaid work, acceptance deadlines, duration, fees, documents to sign). \
+Still follow rule 9: ask open questions and never state the letter's details for them to confirm.
 
 EVERY suspicion reason ID must appear in at least one question's targets_reason_ids.
 No duplicate or near-duplicate questions.
@@ -200,7 +205,10 @@ class QuestionGenerator:
         reason_ids = [r["id"] for r in suspicion_reasons]
 
         # Build the context for the LLM
-        context = self._build_context(company, job_title, job_type, offer_details, suspicion_reasons)
+        context = self._build_context(
+            company, job_title, job_type, offer_details, suspicion_reasons,
+            input_data.get("offer_text", ""),
+        )
 
         max_retries = 3
         last_errors = []
@@ -245,16 +253,22 @@ class QuestionGenerator:
         print(f"\n  [GENERATOR] LLM retries exhausted. Falling back to template questions.")
         return self._template_fallback(input_data, reason_ids)
 
-    def _build_context(self, company, job_title, job_type, offer_details, suspicion_reasons) -> str:
+    def _build_context(self, company, job_title, job_type, offer_details, suspicion_reasons, offer_text="") -> str:
         """Build the full prompt context for the LLM."""
-        details_str = "\n".join(f"  - {k}: {v}" for k, v in offer_details.items())
+        details_str = "\n".join(f"  - {k}: {v}" for k, v in offer_details.items() if v)
         reasons_str = "\n".join(f"  - {r['id']}: {r['reason']}" for r in suspicion_reasons)
+
+        offer_str = (
+            f"Offer letter text (background only, do not read it out):\n\"\"\"{offer_text}\"\"\"\n\n"
+            if offer_text else ""
+        )
 
         return (
             f"Company: {company}\n"
             f"Job Title: {job_title}\n"
             f"Job Type: {job_type}\n"
             f"Offer Details:\n{details_str}\n\n"
+            f"{offer_str}"
             f"Suspicion Reason IDs and reasons (EACH must be targeted by at least one question):\n"
             f"{reasons_str}\n\n"
             f"Generate exactly 10 questions following all the rules above."

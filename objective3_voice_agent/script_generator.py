@@ -41,7 +41,7 @@ def select_voice(location: str, config: dict) -> str:
 
     Falls back to voice_fallback if no region is detected.
     """
-    loc = location.lower()
+    loc = (location or "").lower()
     if any(x in loc for x in ["india", "bangalore", "mumbai", "delhi", "hyderabad", "pune", "chennai"]):
         return config.get("voice_india", "en-IN-NeerjaNeural")
     elif any(x in loc for x in ["uk", "london", "england", "manchester", "birmingham"]):
@@ -70,9 +70,9 @@ def build_script(entity: dict) -> str:
     )
 
     script = SCRIPT_TEMPLATE.format(
-        company_name=entity.get("company_name", "the company"),
-        role=entity.get("role", entity.get("job_role", "the advertised role")),
-        location=entity.get("location", "your location"),
+        company_name=entity.get("company_name") or "the company",
+        role=entity.get("role") or entity.get("job_role") or "the advertised role",
+        location=entity.get("location") or "your location",
         recruiter_line=recruiter_line,
     )
 
@@ -122,7 +122,7 @@ async def generate_verification_audio(
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     script = build_script(entity)
-    voice = select_voice(entity.get("location", ""), config)
+    voice = select_voice(entity.get("location") or "", config)
 
     logger.info(f"[ScriptGenerator] Synthesising with voice: {voice}")
     await _synthesise_audio(script, voice, output_path)

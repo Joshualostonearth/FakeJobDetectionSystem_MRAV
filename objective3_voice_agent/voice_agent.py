@@ -103,6 +103,10 @@ def run_voice_verification(
         )
         push("Simulated call — answer it on the WebRTC page (http://localhost:3000).", step=1)
 
+        from call_initiator import initiate_verification_call, mark_preparing
+
+        mark_preparing(config, True)
+
         # ── Step 2: Generate verification audio ────────────────────────
         push("Generating verification script and synthesising audio...", step=2)
         asyncio.run(generate_verification_audio(entity, str(audio_path), config))
@@ -110,8 +114,6 @@ def run_voice_verification(
 
         # ── Step 3: Initiate WebRTC call via bridge ────────────────────
         push(f"Starting WebRTC verification session...", step=3)
-
-        from call_initiator import initiate_verification_call, wait_for_session_completion
 
         session_result = initiate_verification_call(entity, config)
 
@@ -205,6 +207,13 @@ def run_voice_verification(
         return result.model_dump()
 
     finally:
+        # start-session clears the flag itself; this covers failures before it
+        try:
+            from call_initiator import mark_preparing
+            mark_preparing(config, False)
+        except Exception:
+            pass
+
         # Always clean up temp files — whether pipeline succeeded or failed
         if audio_path:
             Path(audio_path).unlink(missing_ok=True)

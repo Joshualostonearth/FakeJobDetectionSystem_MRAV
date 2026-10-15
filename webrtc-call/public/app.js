@@ -54,6 +54,10 @@ let remoteStream   = null;
 
 // Scraped target data state
 let activeScrapedData = null;
+// Set once the user types a URL, so the offer's website no longer overwrites it
+let scraperUrlEdited = false;
+// How long Start Session waits for the Streamlit app to create the session
+const SESSION_WAIT_MS = 15 * 60 * 1000;
 
 // STUN server configuration for NAT traversal (unchanged)
 const iceServers = {
@@ -448,8 +452,16 @@ async function startVerificationSession() {
     updateAIStatus('Starting session...', '#f0a500');
     
     try {
+        // A session the Streamlit app is running takes priority: starting a
+        // scraper session would replace it on the bridge and the app would
+        // never receive the answers.
+        const currentRes = await fetch('/api/session-status');
+        const current = await currentRes.json();
+        const appSessionActive = current.session_active && current.state === 'active';
+
         // If web scraper has extracted target company details and phone number, use them!
-        if (activeScrapedData && activeScrapedData.company_name) {
+        // Blocked while the Streamlit app is still generating its questions.
+        if (!appSessionActive && !current.preparing && activeScrapedData && activeScrapedData.company_name) {
             const scrapedPhone = (extractedPhoneInput && extractedPhoneInput.value.trim()) || activeScrapedData.primary_phone;
             console.log(`[Session] Starting session with web scraped payload: ${activeScrapedData.company_name} (${scrapedPhone})`);
             const inputData = {
@@ -479,16 +491,25 @@ async function startVerificationSession() {
             updateQuestionsPanel(data.questions || []);
         } else {
             // Step 1: Use the session the Streamlit app prepared for the analysed offer.
-            const statusRes = await fetch('/api/session-status');
-            const status = await statusRes.json();
-
-            if (!(status.session_active && status.state === 'active')) {
-                updateAIStatus('No session yet — analyse an offer in the app first, then click Start Session.', 'red');
-                btnStartSession.disabled = false;
-                return;
+            // Question generation can take several minutes, so wait for it
+            // instead of failing when Start Session is clicked early.
+            const deadline = Date.now() + SESSION_WAIT_MS;
+            let status = current;
+            // While preparing, any active session is a leftover that is about to be replaced
+            while (status.preparing || !(status.session_active && status.state === 'active')) {
+                if (Date.now() > deadline) {
+                    updateAIStatus('No session yet — in the Streamlit app click "Verify by Phone", then click Start Session again.', 'red');
+                    btnStartSession.disabled = false;
+                    return;
+                }
+                updateAIStatus('Waiting for the Streamlit app to finish generating questions (this can take a few minutes)...', '#f0a500');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                const statusRes = await fetch('/api/session-status');
+                status = await statusRes.json();
             }
 
             console.log(`[Session] Using session: ${status.session_id}`);
+            applySessionWebsite(status.website);
             updateQuestionsPanel(status.questions || []);
 
             if (status.question_index > 0) {
@@ -528,6 +549,23 @@ async function startVerificationSession() {
 // ═════════════════════════════════════════════════════════════════════════════
 // 7. WEB SCRAPER & CONTACT EXTRACTOR HANDLERS
 // ═════════════════════════════════════════════════════════════════════════════
+
+// Puts the website extracted from the Streamlit-analysed offer into the scraper URL box
+function applySessionWebsite(website) {
+    if (!scraperUrlInput || scraperUrlEdited || !website) return;
+    const url = /^https?:\/\//i.test(website) ? website : `https://${website}`;
+    scraperUrlInput.value = url;
+}
+
+async function refreshSessionWebsite() {
+    try {
+        const res = await fetch('/api/session-status');
+        const status = await res.json();
+        if (status.session_active) applySessionWebsite(status.website);
+    } catch (err) {
+        console.warn('[Scraper UI] Could not read session website:', err.message);
+    }
+}
 
 async function scrapeTargetWebsite() {
     const url = scraperUrlInput ? scraperUrlInput.value.trim() : '';
@@ -767,6 +805,13 @@ if (btnStartSession) {
 
 if (btnScrapeSite) {
     btnScrapeSite.addEventListener('click', scrapeTargetWebsite);
+}
+
+if (scraperUrlInput) {
+    scraperUrlInput.addEventListener('input', () => { scraperUrlEdited = true; });
+    // The Streamlit app may create the session after this page is opened
+    refreshSessionWebsite();
+    setInterval(refreshSessionWebsite, 5000);
 }
 
 if (btnUseScrapedNumber) {

@@ -17,10 +17,11 @@ try:
 except (ImportError, AttributeError):
     pass
 
+import json
 import tempfile
 import urllib.request
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from ocr_engine import init_ocr_reader, extract_text_from_image, merge_text_and_ocr
 from models import extract_entities_from_text, JobOfferEntities
@@ -60,6 +61,19 @@ def check_ollama_service(host: str = "http://localhost:11434", timeout: float = 
             return response.status == 200
     except Exception:
         return False
+
+
+def ollama_has_model(model: str, host: str = "http://localhost:11434", timeout: float = 2.0) -> bool:
+    """Checks if the Ollama daemon at host has the model pulled ('name' matches 'name:latest')."""
+    try:
+        url = f"{host.rstrip('/')}/api/tags"
+        req = urllib.request.Request(url, headers={"User-Agent": "FakeJobDetection/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            names = [m.get("name", "") for m in json.load(response).get("models", [])]
+    except Exception:
+        return False
+    wanted = model if ":" in model else f"{model}:latest"
+    return wanted in names
 
 
 def validate_user_inputs(image_file: Any, user_text: str) -> None:
@@ -167,6 +181,12 @@ def handle_ui_submission(
             f"Ollama service is unreachable at {ollama_host}. "
             "Please ensure the Ollama background daemon is running ('ollama serve') "
             f"and the '{OLLAMA_MODEL}' model has been downloaded ('ollama pull {OLLAMA_MODEL}')."
+        )
+    if not ollama_has_model(OLLAMA_MODEL, ollama_host):
+        raise RuntimeError(
+            f"The Ollama server at {ollama_host} does not have the '{OLLAMA_MODEL}' model, "
+            "so entities cannot be extracted. Run 'ollama pull "
+            f"{OLLAMA_MODEL}' (or start the Ollama instance that already has it)."
         )
 
     # 6. Entity Extraction (Objective 1a)
@@ -333,6 +353,7 @@ def analyze_extracted_offer(
         "flags": _ui_flags(scam_probability, full_result),
         "explanation": _ui_explanation(scam_probability, full_result),
         "extracted_entities": entities_dict,
+        "offer_text": merged_text,
         "retrieved_evidence": retrieved_evidence,
         "full_pipeline": full_result,
     }
@@ -341,6 +362,7 @@ def analyze_extracted_offer(
 
 def handle_phone_verification(
     analysis_result: Dict[str, Any],
+    on_progress: Optional[Callable[[str, int], None]] = None,
 ) -> Dict[str, Any]:
     """
     Runs Objective 3 voice verification for an offer already analysed by
@@ -349,6 +371,7 @@ def handle_phone_verification(
     Blocks until the WebRTC call completes or times out.
 
     :param analysis_result: The dict returned by handle_ui_submission()
+    :param on_progress: Optional callback(text, step) for Objective 3 progress
     :return: verify_offer_by_phone() result dict
     """
     service_error = check_voice_services()
@@ -361,4 +384,6 @@ def handle_phone_verification(
         retrieved_evidence=analysis_result["retrieved_evidence"],
         suspicion_reasons=analysis_result.get("flags", []),
         scam_probability=analysis_result.get("scam_probability"),
+        offer_text=analysis_result.get("offer_text", ""),
+        on_progress=on_progress,
     )

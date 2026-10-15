@@ -35,14 +35,31 @@ Usage:
 
 import logging
 import os
+import re
 import urllib.request
 import uuid
-from typing import Optional
+from typing import Callable, Optional
 
 from obj2dst import DSTEngine
 from schemas.credibility_schema import Objective2OutputPayload
 
 logger = logging.getLogger(__name__)
+
+# Longest slice of the offer text given to the question generator (local LLM context)
+MAX_OFFER_EXCERPT_CHARS: int = 1500
+
+
+def infer_job_type(job_role: str, offer_text: str) -> str:
+    """'internship' if the role or offer text mentions an internship, otherwise 'job'."""
+    return "internship" if re.search(r"\bintern", f"{job_role} {offer_text}", re.IGNORECASE) else "job"
+
+
+def offer_excerpt(offer_text: str) -> str:
+    """Offer text without merge source tags, whitespace collapsed, cut to MAX_OFFER_EXCERPT_CHARS."""
+    text = re.sub(r"\[SOURCE: [A-Z_]+\]", " ", offer_text or "")
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:MAX_OFFER_EXCERPT_CHARS]
+
 
 
 def run_full_verification(
@@ -158,6 +175,8 @@ def _run_voice_step(
     entities: dict,
     voice_config: Optional[dict],
     suspicion_reasons: Optional[list] = None,
+    offer_text: str = "",
+    on_progress: Optional[Callable[[str, int], None]] = None,
 ) -> None:
     """
     Run Objective 3 and append its DS mass to `masses`.
@@ -190,11 +209,16 @@ def _run_voice_step(
 
         # Build entity dict for Obj3 from Obj2's entities
         voice_entity = {
-            "company_name": entities.get("company_name", ""),
-            "role": entities.get("job_role", ""),
-            "job_role": entities.get("job_role", ""),
-            "location": entities.get("location", ""),
-            "recruiter_name": entities.get("recruiter_name", ""),
+            # Extraction leaves missing fields as None; Obj3 expects strings
+            "company_name": entities.get("company_name") or "",
+            "role": entities.get("job_role") or "",
+            "job_role": entities.get("job_role") or "",
+            "location": entities.get("location") or "",
+            "recruiter_name": entities.get("recruiter_name") or "",
+            "domain_or_website": entities.get("domain_or_website") or "",
+            "recruiter_email": entities.get("recruiter_email") or "",
+            "job_type": infer_job_type(entities.get("job_role") or "", offer_text),
+            "offer_text": offer_excerpt(offer_text),
             "suspicion_reasons": list(suspicion_reasons or []),
         }
 
@@ -203,6 +227,7 @@ def _run_voice_step(
             claim_id=claim_id,
             entity=voice_entity,
             config=voice_config,
+            event_push=on_progress,
         )
 
         result["voice_verification"] = voice_result
@@ -320,6 +345,8 @@ def verify_offer_by_phone(
     suspicion_reasons: Optional[list] = None,
     voice_config: Optional[dict] = None,
     scam_probability: Optional[float] = None,
+    offer_text: str = "",
+    on_progress: Optional[Callable[[str, int], None]] = None,
 ) -> dict:
     """
     Run voice verification for an offer analysed by the Streamlit UI and
@@ -332,6 +359,9 @@ def verify_offer_by_phone(
                             {"page_content", "metadata", "distance"}
         suspicion_reasons:  Flags from the Obj2 filter, passed to question generation
         voice_config:       Optional voice_agent_config dict. If None, loads default.
+        scam_probability:   Text classifier P(scam), combined as another mass if given
+        offer_text:         The analysed offer text, used to tailor the call questions
+        on_progress:        Optional callback(text, step) for Objective 3 progress
 
     Returns:
         Dict with the same final_* / voice_* fields as run_full_verification().
@@ -374,7 +404,7 @@ def verify_offer_by_phone(
         print(f"  🧮 text_classifier: REAL={mass['REAL']:.3f}, FAKE={mass['FAKE']:.3f}")
 
     print("\n--- Bridge Step 2: Running Voice Verification (Objective 3) ---")
-    _run_voice_step(result, masses, entities, voice_config, suspicion_reasons)
+    _run_voice_step(result, masses, entities, voice_config, suspicion_reasons, offer_text, on_progress)
 
     _combine_masses(dst, masses, result)
     return result

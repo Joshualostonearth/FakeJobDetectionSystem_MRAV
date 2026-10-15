@@ -77,11 +77,15 @@ def initiate_verification_call(
     payload = {
         "company_name": entity.get("company_name") or "Unknown company",
         "job_title": entity.get("role") or entity.get("job_role") or "Unspecified role",
-        "job_type": entity.get("job_type", "unknown"),
+        "job_type": entity.get("job_type") or "unknown",
+        "website": entity.get("domain_or_website") or "",
         "offer_details": {
-            "location": entity.get("location", ""),
-            "recruiter_name": entity.get("recruiter_name", ""),
+            "location": entity.get("location") or "",
+            "recruiter_name": entity.get("recruiter_name") or "",
+            "recruiter_email": entity.get("recruiter_email") or "",
+            "website": entity.get("domain_or_website") or "",
         },
+        "offer_text": entity.get("offer_text") or "",
         "suspicion_reasons": _bridge_reasons(entity.get("suspicion_reasons", [])),
     }
 
@@ -139,6 +143,18 @@ def trigger_greeting(config: dict, timeout: int = 30) -> dict:
     except Exception as e:
         logger.error(f"[CallInitiator] Greeting error: {e}")
         return {"success": False, "error": str(e)}
+
+
+def mark_preparing(config: dict, preparing: bool) -> None:
+    """
+    Tell the bridge a session is being prepared, so the WebRTC page waits for
+    it instead of starting its own session. Best effort: errors are logged.
+    """
+    url = f"{_bridge_url(config)}/bridge/preparing"
+    try:
+        requests.post(url, json={"preparing": preparing}, timeout=10)
+    except Exception as e:
+        logger.warning(f"[CallInitiator] Could not update preparing flag: {e}")
 
 
 def get_session_status(config: dict) -> dict:

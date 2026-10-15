@@ -575,8 +575,8 @@ if res:
 
     st.markdown(
         "<p style='font-size: 13px;'>The call runs over WebRTC. Before starting, run "
-        "<code>python whisper_Test/call_bridge.py</code> and <code>node webrtc-call/server/server.js</code>, "
-        "then open <a href='http://localhost:3000' target='_blank'>http://localhost:3000</a> to answer the call.</p>",
+        "<code>python whisper_Test/call_bridge.py</code> and <code>node webrtc-call/server/server.js</code>. "
+        "The link to answer the call appears here once the questions are ready.</p>",
         unsafe_allow_html=True,
     )
 
@@ -589,11 +589,27 @@ if res:
     if start_call:
         st.session_state.voice_result = None
         st.session_state.voice_error = None
-        with st.spinner("Running verification call — answer it at http://localhost:3000 ..."):
-            try:
-                st.session_state.voice_result = handle_phone_verification(res)
-            except Exception as err:
-                st.session_state.voice_error = str(err)
+        call_status = st.status("Generating verification questions — this can take a few minutes...", expanded=True)
+
+        def on_call_progress(text, step):
+            # Step 4 starts once the bridge has created the session with its questions
+            if step == 4:
+                call_status.update(label="Questions ready — waiting for you to answer the call...", state="running")
+                call_status.markdown(
+                    "Open <a href='http://localhost:3000' target='_blank'>http://localhost:3000</a>, "
+                    "connect, and click <b>Start Session</b>.",
+                    unsafe_allow_html=True,
+                )
+
+        try:
+            st.session_state.voice_result = handle_phone_verification(res, on_progress=on_call_progress)
+            if st.session_state.voice_result.get("voice_error"):
+                call_status.update(label="Verification call failed", state="error", expanded=False)
+            else:
+                call_status.update(label="Verification call finished", state="complete", expanded=False)
+        except Exception as err:
+            st.session_state.voice_error = str(err)
+            call_status.update(label="Verification call failed", state="error", expanded=False)
 
     if st.session_state.voice_error:
         st.markdown(

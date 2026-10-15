@@ -27,6 +27,7 @@ import base64
 import json
 import os
 import sys
+import time
 import traceback
 
 from flask import Flask, request, jsonify, Response
@@ -58,6 +59,14 @@ _session: WebRTCCallSession | None = None
 _tts: EdgeTTSFile | None = None
 _stt: WhisperFileTranscriber | None = None
 _session_meta: dict = {}
+# Set while the Streamlit app is preparing a session (script + questions),
+# so the WebRTC page doesn't start a scraper session that would replace it
+_preparing_since: float | None = None
+PREPARING_TTL = 15 * 60  # seconds; clears a flag left by a crashed caller
+
+
+def _is_preparing() -> bool:
+    return _preparing_since is not None and time.time() - _preparing_since < PREPARING_TTL
 
 
 def _get_tts() -> EdgeTTSFile:
@@ -100,6 +109,19 @@ def scrape_url():
 
 
 # ──────────────────────────────────────────────
+# POST /bridge/preparing
+# ──────────────────────────────────────────────
+
+@app.route("/bridge/preparing", methods=["POST"])
+def preparing():
+    """Mark that a session is being prepared. Body: {"preparing": true|false}"""
+    global _preparing_since
+    body = request.get_json(silent=True) or {}
+    _preparing_since = time.time() if body.get("preparing") else None
+    return jsonify({"success": True, "preparing": _is_preparing()})
+
+
+# ──────────────────────────────────────────────
 # POST /bridge/start-session
 # ──────────────────────────────────────────────
 
@@ -127,7 +149,7 @@ def start_session():
         "meta": { "company": "...", "job": "...", ... }
     }
     """
-    global _session, _session_meta
+    global _session, _session_meta, _preparing_since
 
     try:
         input_data = request.get_json()
@@ -188,6 +210,7 @@ def start_session():
             "session_id": response_filename.replace(".json", ""),
             "company": company,
             "job": job_title,
+            "website": input_data.get("website", ""),
             "response_path": response_path,
         }
 
@@ -204,6 +227,10 @@ def start_session():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
+
+    finally:
+        # The session (or its failure) is now visible through /bridge/status
+        _preparing_since = None
 
 
 # ──────────────────────────────────────────────
@@ -425,15 +452,19 @@ def status():
         return jsonify({
             "bridge": "ok",
             "session_active": False,
+            "preparing": _is_preparing(),
         })
 
     state = _session.get_state()
     return jsonify({
         "bridge": "ok",
         "session_active": True,
+        "preparing": _is_preparing(),
         "session_id": _session_meta.get("session_id", ""),
         "company": _session_meta.get("company", ""),
         "job": _session_meta.get("job", ""),
+        # Website extracted from the offer, used to prefill the scraper URL
+        "website": _session_meta.get("website", ""),
         # Lets the WebRTC page show a session started elsewhere (e.g. Streamlit)
         "questions": [
             {"id": r["id"], "purpose": r["purpose"]}
@@ -451,6 +482,7 @@ if __name__ == "__main__":
     print("=" * 60)
     print("  Call Bridge — Flask HTTP Sidecar")
     print("  Endpoints:")
+    print("    POST /bridge/preparing")
     print("    POST /bridge/start-session")
     print("    POST /bridge/speak-first")
     print("    POST /bridge/process-audio")
