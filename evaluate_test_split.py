@@ -8,12 +8,11 @@ The Ollama-backed steps are run once and cached, so the deterministic steps can 
 re-scored quickly:
 
     extract   Obj 1a  models.extract_entities_from_text                -> entities.jsonl
-    llm       Obj 2   M-RAV verdict (engines.credibility_engine) and
-                      per-document alignment triples (engines.alignment_chain) -> llm.jsonl
+    llm       Obj 2   per-document M-RAV alignment triples (engines.alignment_chain) -> llm.jsonl
     score     Obj 1b  FAISS retrieval + scam_classifier
-              Obj 2   app filter (pipeline_bridge.analyze_extracted_offer)
+              Obj 2+4 the app's analysis (pipeline_bridge.analyze_extracted_offer, which runs
+                      full_pipeline_orchestrator.run_full_pipeline, no voice yet)
               Obj 4   DST over FAISS evidence + classifier (phone-verify path, no call)
-              Obj 2+4 full_pipeline_orchestrator.run_full_pipeline (no voice)
                       -> <out_dir>/predictions.jsonl
     fit-platt         refit platt_model.pkl on the DST margins of a *validation* score run
     metrics           -> <out_dir>/performance_metrics.json, predictions_flat.csv
@@ -64,37 +63,9 @@ def _entities(rec: dict):
 
 
 def _evidence_to_payload(offer_id: str, entities: dict, retrieved_evidence: list) -> dict:
-    """Map the app's entities/evidence onto Objective2InputPayload for the orchestrator."""
-    from voice_verification_bridge import distance_to_similarity
-
-    bundle = {"legitimate_job_records": [], "registry_records": [], "linkedin_data": [], "scam_reports": []}
-    for ev in retrieved_evidence:
-        meta = ev.get("metadata", {}) or {}
-        source_type = meta.get("source_type", "")
-        doc = {
-            "doc_id": f"ROW{meta.get('row_id', '')}",
-            "content": ev.get("page_content", ""),
-            # VectorDocument.similarity_score is "higher = closer"; FAISS returns squared L2 distance
-            "similarity_score": distance_to_similarity(float(ev.get("distance", 2.0))),
-            "metadata": meta,
-        }
-        key = {"legitimate_job_record": "legitimate_job_records", "scam_report": "scam_reports",
-               "linkedin_verified": "linkedin_data"}.get(source_type, "registry_records")
-        bundle[key].append(doc)
-
-    return {
-        "offer_id": offer_id,
-        "extracted_entities": {
-            "company_name": entities.get("company_name") or "",
-            "job_role": entities.get("job_role") or "",
-            "recruiter_name": entities.get("recruiter_name"),
-            "domain_or_website": entities.get("domain_or_website"),
-            "email_or_phone": entities.get("recruiter_email"),
-            "salary_or_stipend": None,
-            "location": entities.get("location"),
-        },
-        "retrieved_evidence": bundle,
-    }
+    """Same Objective2InputPayload mapping the app uses."""
+    from pipeline_bridge import build_objective2_payload
+    return build_objective2_payload(offer_id, entities, retrieved_evidence)
 
 
 # ──────────────────────────────────────────────────────────
@@ -120,10 +91,10 @@ def extract(csv_path, out_path):
 
 
 def llm(csv_path, entities_path, out_path):
-    """Run the M-RAV LLM steps on exactly the evidence the score stage uses."""
+    """Run the M-RAV alignment LLM step (Objective 2) on exactly the evidence the score stage uses."""
     from engines.alignment_chain import generate_alignment_triple
     from engines.credibility_engine import OLLAMA_MODEL
-    from pipeline_bridge import analyze_extracted_offer
+    from pipeline_bridge import retrieve_offer_evidence
     from schemas.input_schema import Objective2InputPayload
     from search_engine import EvidenceRetriever
 
@@ -142,10 +113,8 @@ def llm(csv_path, entities_path, out_path):
             entities = _entities(ents[job_id])
             log = io.StringIO()
             with contextlib.redirect_stdout(log):
-                ui = analyze_extracted_offer(posting_to_text(r.to_dict()), entities, retriever)
-                rec["mrav"] = ui["explanation"]
-                payload = Objective2InputPayload(**_evidence_to_payload(f"TEST_{job_id}", ui["extracted_entities"],
-                                                                        ui["retrieved_evidence"]))
+                evidence = retrieve_offer_evidence(posting_to_text(r.to_dict()), entities, retriever)
+                payload = Objective2InputPayload(**_evidence_to_payload(f"TEST_{job_id}", entities.model_dump(), evidence))
                 ev = payload.retrieved_evidence
                 rec["align"] = {
                     d.doc_id: generate_alignment_triple(payload.extracted_entities, d).model_dump()
@@ -168,8 +137,7 @@ def llm(csv_path, entities_path, out_path):
 
 def score(csv_path, entities_path, out_dir, llm_path=None):
     import credibility_engine as root_credibility
-    import engines.credibility_engine as app_credibility
-    from full_pipeline_orchestrator import run_full_pipeline, CLASSIFIER_RELIABILITY
+    from full_pipeline_orchestrator import CLASSIFIER_RELIABILITY
     from obj2dst import DSTEngine
     from pipeline_bridge import analyze_extracted_offer
     from schemas.credibility_schema import MRAVTriple
@@ -187,19 +155,14 @@ def score(csv_path, entities_path, out_dir, llm_path=None):
     cache = _read_jsonl(llm_path)
     current = {"job_id": None}
 
-    # Serve the LLM steps from the cache. Neither output changes a score or verdict
-    # (M-RAV text is display-only; alignment hypotheses only add WARNING flags).
-    def cached_mrav(entities, retrieved_evidence):
-        c = cache.get(current["job_id"])
-        return {"mrav_analysis": c["mrav"] if c and "mrav" in c else "NOT_RUN"}
-
+    # Serve the alignment LLM step from the cache. It never changes a score or verdict
+    # (alignment hypotheses only add WARNING flags).
     def cached_alignment(entities, doc):
         c = cache.get(current["job_id"])
         if c and doc.doc_id in c.get("align", {}):
             return MRAVTriple(**c["align"][doc.doc_id])
         return MRAVTriple(hypothesis="Neutral", explanation="NOT_RUN", consistency_score=0.5)
 
-    app_credibility.evaluate_mrav_consistency = cached_mrav
     root_credibility.generate_alignment_triple = cached_alignment
 
     retriever = EvidenceRetriever(index_folder=str(ROOT / "faiss_index"))
@@ -225,7 +188,8 @@ def score(csv_path, entities_path, out_dir, llm_path=None):
             "trust_score": ui["trust_score"],
             "risk_level": ui["risk_level"],
             "flags": ui["flags"],
-            "mrav_explanation": ui["explanation"],
+            "final_verdict": ui["final_verdict"],
+            "explanation": ui["explanation"],
             "evidence": [{"row_id": ev["metadata"].get("row_id"), "fraudulent": ev["metadata"].get("fraudulent"),
                           "distance": ev["distance"]} for ev in ui["retrieved_evidence"]],
         }
@@ -253,11 +217,9 @@ def score(csv_path, entities_path, out_dir, llm_path=None):
         except Exception as e:
             rec["errors"]["evidence_dst"] = f"{type(e).__name__}: {e}"
 
-        # Full orchestrator: Obj 2 evaluate_credibility -> Obj 4 DST + Platt + override (no voice)
+        # Full pipeline result the app produced: Obj 2 evaluate_credibility -> Obj 4 DST + Platt + override (no voice)
         try:
-            payload = _evidence_to_payload(f"TEST_{job_id}", ui["extracted_entities"], ui["retrieved_evidence"])
-            with contextlib.redirect_stdout(log):
-                full = run_full_pipeline(payload, None, scam_probability=ui["scam_probability"])
+            full = ui["full_pipeline"]
             cred = full["obj2_credibility"]
             fv = full["final_verification"]
             rec["orchestrator"] = {
@@ -396,8 +358,9 @@ def metrics(out_dir):
     # Obj 2 — app filter (what the Streamlit UI shows)
     risk = [r["app"]["risk_level"] for r in app]
     fake_score = [(100 - r["app"]["trust_score"]) / 100 for r in app]
-    mrav = [(r["true_label"], _mrav_verdict(r["app"]["mrav_explanation"])) for r in app
-            if r["app"]["mrav_explanation"] != "NOT_RUN"]
+    # Only the original Run_Objective_2_Filter app path produced an M-RAV verdict line
+    mrav = [(r["true_label"], _mrav_verdict(r["app"].get("mrav_explanation"))) for r in app
+            if r["app"].get("mrav_explanation") not in (None, "NOT_RUN")]
     mrav_ok = [(yy, v) for yy, v in mrav if v]
     report["obj2_app_filter"] = {
         "risk_level_distribution": _dist(risk, y),

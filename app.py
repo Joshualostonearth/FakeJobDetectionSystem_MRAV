@@ -481,7 +481,7 @@ if res:
             f"""
             <div class="score-box">
                 <div class="score-value">{res['trust_score']:.0f}<span style="font-size: 20px; font-weight: 500;">/100</span></div>
-                <div class="score-label">Credibility Trust Score</div>
+                <div class="score-label">Calibrated Confidence: Real</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -517,7 +517,7 @@ if res:
         st.markdown(
             f"""
             <div style="background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 14px; min-height: 110px;">
-                <p style="margin: 0; line-height: 1.5; font-size: 14px;">{res['explanation']}</p>
+                <p style="margin: 0; line-height: 1.5; font-size: 14px;">{html.escape(res['explanation'])}</p>
             </div>
             """,
             unsafe_allow_html=True,
@@ -527,7 +527,7 @@ if res:
         st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Warning Flags Raised</p>", unsafe_allow_html=True)
         flags = res.get("flags", [])
         if flags:
-            flags_html = "".join([f'<div class="flag-item">{f}</div>' for f in flags])
+            flags_html = "".join([f'<div class="flag-item">{html.escape(f)}</div>' for f in flags])
             st.markdown(flags_html, unsafe_allow_html=True)
         else:
             st.markdown(

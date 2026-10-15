@@ -26,10 +26,26 @@ from ocr_engine import init_ocr_reader, extract_text_from_image, merge_text_and_
 from models import extract_entities_from_text, JobOfferEntities
 from search_engine import EvidenceRetriever
 from scam_classifier import predict_scam_probability
-from engines.credibility_engine import Run_Objective_2_Filter, OLLAMA_MODEL
+from engines.credibility_engine import OLLAMA_MODEL
+from full_pipeline_orchestrator import run_full_pipeline
 from voice_verification_bridge import check_voice_services, verify_offer_by_phone
 
-# Risk levels from Run_Objective_2_Filter that warrant phone verification
+# run_full_pipeline final verdict -> risk level shown in the UI (and used for the call decision)
+VERDICT_TO_RISK_LEVEL = {
+    "HIGH_RISK_SCAM": "HIGH RISK",
+    "SUSPICIOUS_FAKE": "HIGH RISK",
+    "UNCERTAIN_NEEDS_VERIFICATION": "MEDIUM RISK",
+    "VERIFIED_REAL": "LOW RISK",
+}
+
+# Text classifier P(scam) at which its score is listed among the warning flags
+CLASSIFIER_FLAG_CRITICAL: float = 0.45
+CLASSIFIER_FLAG_WARNING: float = 0.25
+
+# Longest flag text shown in the UI (alignment flags carry full LLM explanations)
+MAX_FLAG_CHARS: int = 300
+
+# Risk levels that warrant phone verification
 VOICE_VERIFICATION_RISK_LEVELS = ("HIGH RISK", "MEDIUM RISK")
 # Risk levels that start the verification call without waiting for the user
 AUTO_CALL_RISK_LEVELS = ("HIGH RISK",)
@@ -164,18 +180,16 @@ def handle_ui_submission(
     return result
 
 
-def analyze_extracted_offer(
+def retrieve_offer_evidence(
     merged_text: str,
     entities: JobOfferEntities,
     retriever: EvidenceRetriever,
-) -> Dict[str, Any]:
+) -> List[Dict[str, Any]]:
     """
-    Steps 7-10 of handle_ui_submission: evidence retrieval, text classifier,
-    Objective 2 filter and the UI payload, for already-extracted entities.
+    Step 7-8 of handle_ui_submission: FAISS evidence retrieval, formatted as
+    [{"page_content", "metadata", "distance"}], closest match first.
     """
-    entities_dict = entities.model_dump()
-
-    # 7. Evidence Retrieval (Objective 1b) — the index stores full postings, so search with the full text
+    # The index stores full postings, so search with the full text
     try:
         bundle = retriever.retrieve_evidence_bundle(entities, top_k=3, query_text=merged_text)
         if bundle.get("status") == "FAILED":
@@ -183,13 +197,10 @@ def analyze_extracted_offer(
     except Exception as e:
         raise RuntimeError(f"Evidence retrieval failed: {str(e)}")
 
-    # 8. Format retrieved evidence for Objective 2 consumption
     retrieved_evidence: List[Dict[str, Any]] = []
     bundle_evidence = bundle.get("retrieved_evidence", {})
-
     for category in ["legitimate_job_records", "scam_reports", "registry_records", "linkedin_data"]:
-        docs = bundle_evidence.get(category, [])
-        for item in docs:
+        for item in bundle_evidence.get(category, []):
             retrieved_evidence.append({
                 "page_content": item.get("content", ""),
                 "metadata": item.get("metadata", {}),
@@ -198,6 +209,100 @@ def analyze_extracted_offer(
 
     # Closest match first (lower L2 distance = more similar)
     retrieved_evidence.sort(key=lambda doc: doc["distance"])
+    return retrieved_evidence
+
+
+def build_objective2_payload(offer_id: str, entities: Dict[str, Any], retrieved_evidence: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Map extracted entities and FAISS evidence onto the Objective2InputPayload schema."""
+    from voice_verification_bridge import distance_to_similarity
+
+    bundle = {"legitimate_job_records": [], "registry_records": [], "linkedin_data": [], "scam_reports": []}
+    for ev in retrieved_evidence:
+        meta = ev.get("metadata", {}) or {}
+        source_type = meta.get("source_type", "")
+        doc = {
+            "doc_id": f"ROW{meta.get('row_id', '')}",
+            "content": ev.get("page_content", ""),
+            # VectorDocument.similarity_score is "higher = closer"; FAISS returns squared L2 distance
+            "similarity_score": distance_to_similarity(float(ev.get("distance", 2.0))),
+            "metadata": meta,
+        }
+        key = {"legitimate_job_record": "legitimate_job_records", "scam_report": "scam_reports",
+               "linkedin_verified": "linkedin_data"}.get(source_type, "registry_records")
+        bundle[key].append(doc)
+
+    return {
+        "offer_id": offer_id,
+        "extracted_entities": {
+            "company_name": entities.get("company_name") or "",
+            "job_role": entities.get("job_role") or "",
+            "recruiter_name": entities.get("recruiter_name"),
+            "domain_or_website": entities.get("domain_or_website"),
+            "email_or_phone": entities.get("recruiter_email"),
+            "salary_or_stipend": None,
+            "location": entities.get("location"),
+        },
+        "retrieved_evidence": bundle,
+    }
+
+
+def _ui_flags(scam_probability: Optional[float], full_result: Dict[str, Any]) -> List[str]:
+    """Warning/critical flags for the UI: classifier score, Objective 2 flags and any override."""
+    flags: List[str] = []
+    if scam_probability is not None:
+        if scam_probability >= CLASSIFIER_FLAG_CRITICAL:
+            flags.append(f"CRITICAL: Text classifier rates the posting as likely fraudulent (P(scam)={scam_probability:.2f})")
+        elif scam_probability >= CLASSIFIER_FLAG_WARNING:
+            flags.append(f"WARNING: Text classifier finds scam-like wording (P(scam)={scam_probability:.2f})")
+
+    for flag in full_result["obj2_credibility"]["credibility_evaluation"]["flags_triggered"]:
+        if flag["severity"] in ("CRITICAL", "WARNING"):
+            text = f"{flag['severity']}: {flag['message']}"
+            flags.append(text if len(text) <= MAX_FLAG_CHARS else text[:MAX_FLAG_CHARS].rstrip() + "…")
+
+    reason = full_result["final_verification"].get("override_reason")
+    if reason:
+        flags.append(reason)
+    return list(dict.fromkeys(flags))
+
+
+def _ui_explanation(scam_probability: Optional[float], full_result: Dict[str, Any]) -> str:
+    """One-paragraph summary of how the final verdict was reached."""
+    fv = full_result["final_verification"]
+    dst = full_result["dst_combined_masses"]
+    cred = full_result["obj2_credibility"]
+    parts = [
+        f"Final verdict: {fv['final_verdict'].replace('_', ' ')} "
+        f"(calibrated confidence the offer is real: {fv['calibrated_confidence']:.0%}).",
+    ]
+    if scam_probability is not None:
+        parts.append(f"Text classifier P(scam) = {scam_probability:.2f}.")
+    parts.append(
+        f"Evidence: {len(cred['evaluated_evidence'])} retrieved record(s) kept, "
+        f"{len(cred['discarded_evidence'])} discarded; combined belief REAL {dst.get('REAL', 0.0):.2f}, "
+        f"FAKE {dst.get('FAKE', 0.0):.2f}, uncertain {dst.get('UNCERTAIN', 1.0):.2f} "
+        f"(conflict K = {dst.get('conflict', 0.0):.2f})."
+    )
+    if fv.get("override_reason"):
+        parts.append(fv["override_reason"])
+    return " ".join(parts)
+
+
+def analyze_extracted_offer(
+    merged_text: str,
+    entities: JobOfferEntities,
+    retriever: EvidenceRetriever,
+) -> Dict[str, Any]:
+    """
+    Steps 7-10 of handle_ui_submission for already-extracted entities: evidence
+    retrieval, text classifier, and the full Objective 2 -> 4 pipeline
+    (run_full_pipeline: credibility filtration, DST, Platt calibration, override).
+    """
+    entities_dict = entities.model_dump()
+    offer_id = f"UI_{uuid.uuid4().hex[:8]}"
+
+    # 7-8. Evidence retrieval (Objective 1b)
+    retrieved_evidence = retrieve_offer_evidence(merged_text, entities, retriever)
 
     # 8b. Supervised text classifier (Objective 1b); optional if the model has not been trained
     try:
@@ -206,26 +311,30 @@ def analyze_extracted_offer(
         print(f"[Warning] {e}")
         scam_probability = None
 
-    # 9. Credibility Evaluation (Objective 2)
+    # 9. Objectives 2 -> 4 (no voice evidence yet; the call happens afterwards)
     try:
-        results_obj2 = Run_Objective_2_Filter(entities_dict, retrieved_evidence, scam_probability=scam_probability)
+        payload = build_objective2_payload(offer_id, entities_dict, retrieved_evidence)
+        full_result = run_full_pipeline(payload, None, scam_probability=scam_probability)
     except Exception as e:
         raise RuntimeError(f"Credibility evaluation failed: {str(e)}")
 
-    risk_level = str(results_obj2.get("risk_level", "UNKNOWN"))
+    fv = full_result["final_verification"]
+    risk_level = VERDICT_TO_RISK_LEVEL.get(fv["final_verdict"], "MEDIUM RISK")
 
     # 10. Assemble complete UI payload
     return {
-        "offer_id": f"UI_{uuid.uuid4().hex[:8]}",
-        "trust_score": float(results_obj2.get("final_trust_score", 0.0)),
+        "offer_id": offer_id,
+        "trust_score": round(float(fv["calibrated_confidence"]) * 100.0, 1),
         "scam_probability": scam_probability,
         "risk_level": risk_level,
+        "final_verdict": fv["final_verdict"],
         "voice_recommended": risk_level in VOICE_VERIFICATION_RISK_LEVELS,
         "auto_call": risk_level in AUTO_CALL_RISK_LEVELS,
-        "flags": list(results_obj2.get("flags_raised", [])),
-        "explanation": str(results_obj2.get("mrav_explanation", "No explanation available.")),
+        "flags": _ui_flags(scam_probability, full_result),
+        "explanation": _ui_explanation(scam_probability, full_result),
         "extracted_entities": entities_dict,
         "retrieved_evidence": retrieved_evidence,
+        "full_pipeline": full_result,
     }
 
 

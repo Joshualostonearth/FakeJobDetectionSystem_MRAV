@@ -1,0 +1,415 @@
+{
+  "dataset": {
+    "rows_evaluated": 50,
+    "label_counts": {
+      "real_0": 48,
+      "fake_1": 2
+    },
+    "positive_class": "fake (fraudulent=1)"
+  },
+  "errors": {
+    "app": 0,
+    "evidence_dst": 0,
+    "orchestrator": 0
+  },
+  "llm_outputs_cached_rows": 50,
+  "obj1a_entity_extraction": {
+    "note": "EMSCAD has no gold entity annotations, so extraction coverage is reported, not accuracy.",
+    "field_non_empty_rate": {
+      "company_name": 0.92,
+      "job_role": 1.0,
+      "recruiter_name": 0.02,
+      "recruiter_email": 0.04,
+      "domain_or_website": 0.48,
+      "location": 0.98
+    }
+  },
+  "obj1b_retrieval_top1_neighbour": {
+    "n": 50,
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "precision_fake": 1.0,
+    "recall_fake": 1.0,
+    "f1_fake": 1.0,
+    "precision_real": 1.0,
+    "recall_real": 1.0,
+    "f1_real": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "f1_weighted": 1.0,
+    "mcc": 1.0,
+    "false_positive_rate": 0.0,
+    "confusion_matrix": {
+      "tn_real_as_real": 48,
+      "fp_real_as_fake": 0,
+      "fn_fake_as_real": 0,
+      "tp_fake_as_fake": 2
+    }
+  },
+  "obj1b_text_classifier_p_ge_0.5": {
+    "n": 50,
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "precision_fake": 1.0,
+    "recall_fake": 1.0,
+    "f1_fake": 1.0,
+    "precision_real": 1.0,
+    "recall_real": 1.0,
+    "f1_real": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0,
+    "f1_weighted": 1.0,
+    "mcc": 1.0,
+    "false_positive_rate": 0.0,
+    "confusion_matrix": {
+      "tn_real_as_real": 48,
+      "fp_real_as_fake": 0,
+      "fn_fake_as_real": 0,
+      "tp_fake_as_fake": 2
+    },
+    "roc_auc": 1.0,
+    "pr_auc": 1.0
+  },
+  "obj2_app_filter": {
+    "risk_level_distribution": {
+      "real": {
+        "LOW RISK": 48
+      },
+      "fake": {
+        "HIGH RISK": 2
+      }
+    },
+    "fake_if_HIGH_RISK": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      },
+      "roc_auc": 1.0,
+      "pr_auc": 1.0
+    },
+    "fake_if_HIGH_or_MEDIUM_RISK": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      },
+      "roc_auc": 1.0,
+      "pr_auc": 1.0
+    },
+    "flag_frequency": {
+      "CRITICAL: Text classifier rates the posting as likely fraudulent": 2,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Oak Tree Financing (oaktreefinancing.com) does not match the retrieved record's company profile, which is Fundation (fundation.com). This discrepancy suggests a potential mismatch.\n- Location: While both locations\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Oak Tree Financing (oaktreefinancing.com) does not match the retrieved record's company profile, which is Fundation (no website mentioned).\n- Location: The claimed location of Watertown, NY, US in the job offer co\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain \"oaktreefinancing.com\" does not match the retrieved record's company profile, which states that Fundation is a technology-empowered direct lender with a presence in New York City.\n- Location: The claimed location \"Wa\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW5760)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW3615)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW17660)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is shapeways.com, but the retrieved record shows a location of US, NY, New York, which suggests that Shapeways may have multiple locations or offices.\n- The claimed role is Production Ceramicist, while the retrieved record l\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Domain: The claimed domain of Shapeways is shapeways.com, but the retrieved record indicates that the company has factories and offices in Eindhoven, NL; Queens, NY; and Seattle. This discrepancy suggests that the company may have multiple l\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain mismatch: The claimed domain is shapeways.com, but the retrieved record indicates that Shapeways has factories and offices in Eindhoven, Queens, and Seattle, suggesting a different location than what was claimed.\n- Location discrepancy:\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Hospital & Health Care\n- Claimed Location: Urbana, IL vs Retrieved Record: US, TX, Houston\n- Claimed Role: ER RN vs Retrieved Record: RNs Needed ASAP - ER & ICU - APPLY NOW!! (no specific role mentioned\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs. Retrieved Record: Critical Nurse Staffing, Inc. is enrolled with the U.S Department of Labor to provide nursing care to the former defense workers now receiving benefits through the RECA and EEOICP programs. This indica\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Critical Nurse Staffing, Inc., which is a specific company providing services to Defense Industry Workers and former defense workers.\n- Claimed Location: Urbana, IL vs Retrieved Record: Silver City, NM,\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW16553)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Domain: The claimed domain of the job offer is healthcareofontario.ca, while the retrieved record indicates that the actual job posting is for a Homework Club Tutor position at Sandy Hill Community Health Centre (CSCCS), which seems unrelate\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW17667)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain \"N/A\" does not match the retrieved record's industry, which is environmental consulting.\n- Location: The claimed location \"Middlebury, CT\" differs from the retrieved record's location, which is South Windsor, CT.\n- R\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates the job is located in US, MA, Boston.\n- The claimed role is \"Corporate Controller\" which does not match with the title \"CNC Programmer\".\n- The claimed location is \"Middlebury, CT\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of ProServices does not match the industry mentioned in the retrieved record, which is Manufacturing and other highly technical jobs. This discrepancy raises suspicions about the legitimacy of the job offer.\n- Role:\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW2891)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW15929)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain of peoplelinx.com matches the retrieved record's company profile, but the title is VP of Engineering (CTO) instead of VP of Product Management.\n- The location is Philadelphia, PA, which matches the claim, but the department\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: peoplelinx.com vs Retrieved Record: PeopleLinx is recruiting someone who is enthusiastic and personable, yet has the can-do attitude of a hunter. As a Business Development Representative at PeopleLinx, you will initiate and bui\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of peoplelinx.com does not match the retrieved record, which states PeopleLinx is recruiting someone for an Account Executive role in Inside Sales, not VP of Product Management.\n- Role: The offered role is significan\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of tidewatrfinance.com does not match the retrieved record's company profile, which states Tidewater Finance Co. was established in 1992 for retail installment contracts.\n- Role: The offered role is Credit Confirmati\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of tidewatrfinance.com does not match the retrieved record's company profile, which states Tidewater Finance Co. was established in 1992 and has two divisions (Tidewater Credit Services and Tidewater Motor Credit).\n-\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: GB, Wirral (The offered domain does not match the legitimate job record's location.)\n- Claimed Role: Customer Service vs Retrieved Record: Customer Service Apprenticeship (Although both mention customer\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Industry is missing, but it's stated that Spectrum Learning is an official re-seller for The Institute of Recruiters/ Study Course professional courses in HR Practice, In-House Recruitment and Agency Re\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: eroad.co.nz vs Retrieved Record: [LEGITIMATE JOB RECORD] Title: Accounts Payable Administrator. Location: NZ, N, Auckland. Department: . Industry: Information Technology and Services. Employment Type: Full-time. Company Profile\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"eroad.co.nz\" does not match the retrieved record's domain, which is not explicitly stated but can be inferred as a generic NZ-based domain.\n- The claimed role \"Solutions Architect\" is different from the actual job title \"Pl\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of abc.com does not match the legitimate job record's location, which is US, WI, Mundelein.\n- Role: The offered role is Outside Sales Professional, whereas the legitimate job record describes it as Inside Sales Profe\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of abc.com does not match the retrieved record's domain, which is abc.supplyco.com.\n- Role: The offered role is Outside Sales Professional, while the retrieved record indicates that the job title is Inside Sales Prof\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of abc.com does not match the retrieved record's domain, which is abc.supplyco.com. This discrepancy raises suspicions about the legitimacy of the job offer.\n- Location: The claimed location of US, IN, Indianapolis d\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW17599)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW607)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW11588)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is listed as N/A, but the retrieved record indicates that the job is located in US, VA, McLean. This discrepancy suggests a potential mismatch.\n- Location: Although the claimed location is Boxborough, MA, US, the ret\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Barouh & Partners is N/A, but the retrieved record indicates that they are a technology company with offices in Belgium, Bulgaria, and Hungary. This discrepancy suggests that the company's actual domain may not ma\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Claimed Domain: collabera.com vs Retrieved Record: US, TN, Memphis (domain mismatch)\n*   Claimed Role: Software Engineer vs Retrieved Record: System Administrator (role mismatch)\n*   Claimed Location: Quezon City, PH vs Retrieved Record: US,\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"collabera.com\" does not match the retrieved record's location \"PH, , Quezon City\", which is a more specific and localized address.\n- The claimed role \"Software Engineer\" contradicts the retrieved record's title \"Infrastruct\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW11770)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW11573)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW6774)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"cylance.com\" does not match the retrieved record's domain, which is missing.\n- The claimed role \"Product Support Engineer\" contradicts the retrieved record's title \"Data Scientist\".\n- The claimed location \"Irvine, CA, US\" d\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Claimed Domain: cylance.com - Retrieved Record: legitimate_job_record, similarity: 0.73 (Domain age and structure do not match)\n*   Claimed Role: Product Support Engineer - Retrieved Record: Regional Sales Director - North East (Role signifi\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of appliedmemetics.com does not match the retrieved record's company profile, which states that Applied Memetics LLC is a professional services company.\n- Location: The claimed location of Miami, FL, US does not matc\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain mismatch: The claimed domain of Applied Memetics LLC is appliedmemetics.com, but the retrieved record indicates that the company operates under a different domain (not specified).\n- Location mismatch: The claimed location of the role is\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: US, IL, Chicago - The claimed domain is not specified, while the retrieved record specifies a location within the United States.\n- Claimed Role: Quality Assurance Manager vs Retrieved Record: Title: Qua\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: US, OH, Cleveland (Domain mismatch)\n- Claimed Location: Chicago, IL vs Retrieved Record: US, OH, Cleveland (Location mismatch)\n- Claimed Role: Quality Assurance Manager vs Retrieved Record: Title: Quali\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: The claimed company and role do not match the retrieved record, which states \"US, MI, Detroit\" as the location instead of \"Chicago, IL\". Additionally, the domain is not specified in the offer claim. Furthermore, the salary requirements are not m\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\", but the retrieved record indicates that the company, UCP, supports adults with all kinds of developmental disabilities and has a specific job opening for caregivers.\n- The claimed role is \"Part-Time Caregiver\", whe\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates that UCP is seeking a caregiver for a woman with developmental disabilities, which falls under the industry of healthcare or social services.\n- The claimed role is \"Part-Time Car\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Claimed Domain: adzuna.co.uk vs Retrieved Record: GB, LND, London - The domain claimed by Adzuna does not match the location specified in the retrieved record.\n*   Claimed Role: Country Manager vs Retrieved Record: Sales Executive - The role\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"adzuna.co.uk\" does not match the retrieved record's company profile, which is \"Positionly Inc.\" with a different URL.\n- The claimed role \"Country Manager\" is not present in the retrieved record, which lists an SEO Specialis\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Adzuna is adzuna.co.uk, but the retrieved record shows a job posting for an Associate Business Development role in CH (Finland), which contradicts the claim.\n- Location: The offered location is London, GB, whereas\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, while the retrieved record specifies a domain of Financial Services.\n- Location: The claimed location is Cincinnati, OH, US, whereas the retrieved record indicates a location of US, PA, Pittsburgh.\n- Salary a\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is \"N/A\", while the retrieved record indicates that the job title and location are associated with a specific industry (Financial Services) and region (US, MI, Detroit).\n- Role: Although both claim an \"Entry Level Sa\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of the job offer is User Experience Design Consultancy, while the retrieved record indicates that the company is One Design Company, which has a different domain (one-design.com).\n- Location: The claimed location of\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of the job offer is User Experience Design Consultancy, while the retrieved record indicates that the company is Cohaesus, a marketing and advertising agency with a specific focus on creative agencies. This discrepan\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain \"N/A\" does not match the retrieved record's industry \"Manufacturing\".\n- Location: The claimed location \"Cleveland, OH\" is close but not exact to the retrieved record's location \"NE Ohio\", which seems more specific.\n-\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, while the retrieved record indicates a specific industry (\"Legal\") and company profile (\"an AmLaw top 100 firm\"), which does not match the claim.\n- Location: The claimed location is Cleveland, OH, whereas the\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\", but the retrieved record shows that the company is a full-service provider of legal staffing and recruiting services, operating in multiple locations including US, CA, Orange County.\n- The claimed role is \"Labor &\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain albanycharterschools.org matches the retrieved record's source, but the job title is Secondary Science Teacher instead of Mathematics Specialist.\n- The claimed role and location match the retrieved record's details, but the\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain mismatch: The claimed domain of Unboxed is unboxed.com, but the retrieved record indicates that the company is actually Cartegraph, with a location in Dubuque, IA.\n- Location discrepancy: The offered role is based in Richmond, VA, where\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Unboxed is unboxed.com, but the retrieved record from FundApps indicates that the company is based in London (GB) and not Richmond, VA.\n- Location: The offered location is Richmond, VA, which does not match the lo\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of ValleySoft (valleysoft.com) does not match the retrieved record's company profile, which is Infolob Solutions (infolobsolutions.com).\n- Location: The offered location in Philadelphia, PA contradicts the retrieved\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of ValleySoft does not match the legitimate job record's company profile, which is missing.\n- Location: The offered location of Philadelphia, PA, differs from the legitimate job record's location, US, UT, Murray.\n- C\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: *   Domain: The claimed domain of ValleySoft does not match the retrieved record's company profile, which is missing.\n*   Location: The offered location of Philadelphia, PA does not align with the retrieved record's location, which is Pittsburgh\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is axonix.com, but the retrieved record indicates that Axonix is a global mobile advertising technology company with its headquarters in central London (similarity: 0.97).\n- The offered role of Chief Commercial Officer does\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A, but Retrieved Record shows Industry: Banking.\n- Claimed Role: Collection Specialist, but Retrieved Record shows Title: Loan Officer / Account Executive.\n- Claimed Location: Woburn, MA, US, but Retrieved Record shows Locati\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: * Domain: The claimed domain is N/A, while the retrieved record indicates that the job title and location are specific to a Consumer Lending Sales Specialist role in Woburn, MA. This suggests a mismatch between the claimed domain and the actual\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates the company operates in the banking industry.\n- The claimed role is \"Collection Specialist\", whereas the retrieved record mentions an Operations Support Representative role with\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"N/A\" does not match the retrieved record's industry \"Construction\".\n- The claimed location \"MINNEAPOLIS, MN\" is different from the retrieved record's location \"US, NJ, Lakewood\".\n- There is no information on the company pro\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of the job offer is \"INSTALLERS\", while the retrieved record's industry is \"Construction\". Although both are related, they are not identical.\n- Location: The claimed location of the job offer is \"MINNEAPOLIS, MN\", wh\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW9752)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW9747)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW9749)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of middleeastrecruitment.com is different from the retrieved record, which states that Middle East Recruitment has its headquarters in London and is a specialized recruitment and consulting agency. This discrepancy r\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: 1. **Domain**: The claimed domain of middleeastrecruitment.com does not match the retrieved record, which states that the job is for a Major Oil & Gas Company in the Kingdom of Saudi Arabia.\n2. **Location**: The claimed location is London, GB, b\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: * Domain: The claimed domain is N/A, but the retrieved record indicates that Recombine operates in the Biotechnology industry. This discrepancy suggests a mismatch between the company's actual domain and its advertised one.\n* Location: The offer\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, but the retrieved record indicates that the company operates in the Biotechnology industry. This discrepancy suggests a mismatch between the claimed and actual domains.\n- Location: The offered location is US,\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: * Domain: The claimed domain of Felsburg Holt & Ullevig is N/A, but the retrieved record indicates that the company specializes in civil engineering and environmental consulting. This discrepancy suggests that the company's actual domain may be\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain mismatch: The claimed domain is N/A, but the retrieved record indicates that Felsburg Holt & Ullevig specializes in civil engineering and transportation planning.\n- Role discrepancy: The offered role is Software Engineer - GIS Specialis\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\", but the retrieved record shows that Felsburg Holt & Ullevig specializes in transportation and environmental planning, traffic engineering, transportation system design, and environmental services, which falls under\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, but the retrieved record indicates that the job title and location are specific to US, AR, Little Rock, which suggests a mismatch.\n- Role: Although both claim an Entry Level Sales role, the responsibilities l\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, but the retrieved record shows a specific industry (Financial Services) and location (US, AL, Birmingham), which contradicts the claim.\n- Location: The claimed location is US, DC, but the retrieved record sho\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Logistics and Supply Chain - The claimed domain does not match the actual industry of Boxbee, which is logistics and supply chain.\n- Claimed Role: Data Scientist vs Retrieved Record: VP of Engineering -\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Logistics and Supply Chain\n- Claimed Role: Data Scientist vs Retrieved Record: Customer Service and Dispatch Associate\n- Claimed Location: US, NY, New York vs Retrieved Record: US, NY, Brooklyn\n- Claime\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is N/A, but the retrieved record shows that Boxbee operates in the Logistics and Supply Chain industry.\n- The claimed role is Data Scientist, whereas the retrieved record indicates a Delivery Driver position.\n- The claimed l\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of novitexas.com does not match the retrieved record's location, which is San Antonio, TX. This discrepancy raises suspicions about the legitimacy of the job offer.\n- Location: The offered location is Houston, TX, wh\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of novitexas.com does not match the retrieved record's location, which is Plano, TX. This discrepancy suggests that the company may be using a fictional or outdated domain.\n- Location: The claimed location of Houston\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Legal Services - This indicates a significant mismatch between the claimed domain and the actual industry of the job.\n- Claimed Role: Customer Service Associate - Part Time vs Retrieved Record: Full-tim\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is listed as N/A, but the retrieved record indicates that the company operates within the Legal Services industry.\n- Location: Although both claim Phoenix, AZ as a location, the retrieved record specifies that the ro\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, but the retrieved record indicates that the company operates in the Computer Software industry.\n- Role: The offered role is UI Developer, while the retrieved record states that the job title is Software Engin\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is not specified, but the retrieved record indicates that the company operates in the computer software industry.\n- The claimed role of UI Developer does not match the title of UX Designer in the retrieved record.\n- The clai\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates that the company, Communication Service for the Deaf, Inc., operates in the US, TX, Austin.\n- The claimed role is \"UI Developer\" whereas the retrieved record states that the job\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Manufacturing Engineer - FDA GMP ISO CAD DVM - CT, which indicates a significant mismatch between the claimed domain and the actual job requirements.\n- Claimed Role: New Product Development Designer/Dra\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of Vx Group is \"N/A\", but the retrieved record states that the company, Vayu, is located in Ann Arbor, Michigan, USA and New Delhi, India. This indicates a discrepancy between the claimed and actual domains.\n- Locati\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates the job title and location are specific to US, CT, Bridgeport.\n- The claimed role is \"New Product Development Designer/Drafter\" but the retrieved record describes a Manufacturing\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"kin.com\" does not match the retrieved record's job location \"United States- Colorado, Colorado Springs\".\n- The claimed role \"Lead Software Engineer\" is different from the actual job title \"IT Security Threat and Risk Manage\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"kin.com\" does not match the retrieved record's location \"US, UT, Murray\".\n- The claimed role \"Lead Software Engineer\" is different from the retrieved record's title \"Web Developer\".\n- The claimed location \"Chicago, IL\" does\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"kin.com\" does not match the retrieved record's company profile, which is \"Indice\".\n- The claimed location \"Chicago, IL\" does not match the retrieved record's location \"GR\", which seems to be an abbreviation for Grand Rapids\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Information Technology and Services\n- Claimed Role: JavaScript / .net Developer vs Retrieved Record: Visual Design Engineer (with skills in HTML, CSS, Adobe Photoshop)\n- Claimed Location: N/A vs Retriev\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates that EXIS I.T. operates in Germany, specifically in Ludwigshafen.\n- The claimed role is \"JavaScript / .net Developer\", whereas the retrieved record mentions a PERL/CGI programmer\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Computer Software\n- Claimed Role: JavaScript / .net Developer vs Retrieved Record: .NET developer (note: the dot notation is different, but it's still a match)\n- Claimed Location: N/A vs Retrieved Recor\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record: Information Technology and Services\nThe offered domain does not match the actual industry of the job, which is IT and services.\n- Claimed Role: CEO (cards and payments) vs Retrieved Record: Commercial D\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: N/A vs Retrieved Record's Industry: Information Technology and Services - The offered domain does not match the industry of the legitimate job record.\n- Claimed Role: CEO (cards and payments) vs Retrieved Record's Job Title: Bu\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"sdad.org\" does not match the retrieved record's location \"US, IA, Cedar Rapids\", indicating a significant mismatch.\n- The claimed role \"Snack Bar Specialist - Part Time\" is unrelated to the Community and Volunteer Outreach\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain \"sdad.org\" does not match the retrieved record's domain \"US, SD, Madison\", which is likely a location-based identifier.\n- The claimed role \"Snack Bar Specialist - Part Time\" is unrelated to the retrieved record's job title \"\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain of sdad.org does not match the legitimate job record's company profile, which mentions WannaYum as a user-centric mobile food-ordering platform. This discrepancy raises suspicions about the legitimacy of the offer.\n-\u2026": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW3321)": 1,
+      "WARNING: Similar known fraudulent listing retrieved from EMSCAD records (doc: ROW6962)": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain mismatch: The claimed domain is N/A, while the retrieved record specifies a Medical Practice industry.\n- Location discrepancy: The offered location is Scottsdale, AZ, but the retrieved record indicates that applicants must be willing to\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"N/A\" while the retrieved record indicates that the job is in the medical practice industry.\n- The claimed role is \"Medical Assistant\" but the retrieved record uses the title \"Certified Medical Assistant\", suggesting a mo\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Domain: The claimed domain is N/A, but the retrieved record indicates that the job title and industry are related to Hospital & Health Care, which contradicts the claim of a Medical Assistant role.\n- Salary: There is no information provided on\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - The claimed domain is \"None specified\" while the retrieved record specifies \"Computer Software\".\n- The claimed location is \"GB, CAM, Cambridge\" which does not match the retrieved record's location \"ID, JW, Bandung\".\n- There is no information a\u2026": 1,
+      "WARNING: Offer contradicts EMSCAD legitimate baseline: - Claimed Domain: None specified, but Retrieved Record states \"Industry: .\", which is missing.\n- Claimed Location: GB, CAM, Cambridge, but Retrieved Record states \"Location: .\", which is also missing.\n- Claimed Role: Software Developer, but Retr\u2026": 1
+    },
+    "mrav_llm_verdict": {
+      "note": "VERDICT line of the M-RAV explanation (display-only, does not change the trust score).",
+      "rows_with_llm_output": 0,
+      "unparseable": 0,
+      "distribution": {
+        "real": {},
+        "fake": {}
+      },
+      "fake_if_SUSPICIOUS_or_FRAUDULENT": null,
+      "fake_if_FRAUDULENT": null
+    }
+  },
+  "obj4_evidence_dst_without_voice": {
+    "verdict_distribution": {
+      "real": {
+        "VERY STRONG - Real": 47,
+        "STRONG - Real": 1
+      },
+      "fake": {
+        "VERY STRONG - Fake": 2
+      }
+    },
+    "abstention_rate": 0.0,
+    "fake_if_BetP_fake_ge_0.5_all_rows": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      },
+      "roc_auc": 1.0,
+      "pr_auc": 1.0
+    },
+    "on_decided_only": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      }
+    }
+  },
+  "obj2_obj4_final_verdict_without_voice": {
+    "routing_distribution": {
+      "real": {
+        "PROCEED_TO_VOICE_VERIFICATION": 48
+      },
+      "fake": {
+        "PROCEED_TO_VOICE_VERIFICATION": 2
+      }
+    },
+    "final_verdict_distribution": {
+      "real": {
+        "VERIFIED_REAL": 48
+      },
+      "fake": {
+        "HIGH_RISK_SCAM": 2
+      }
+    },
+    "override_applied_rate": 0.0,
+    "is_scam_all_rows": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      },
+      "roc_auc": 1.0,
+      "pr_auc": 1.0
+    },
+    "abstention_rate_UNCERTAIN_NEEDS_VERIFICATION": 0.0,
+    "on_decided_only": {
+      "n": 50,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision_fake": 1.0,
+      "recall_fake": 1.0,
+      "f1_fake": 1.0,
+      "precision_real": 1.0,
+      "recall_real": 1.0,
+      "f1_real": 1.0,
+      "precision_macro": 1.0,
+      "recall_macro": 1.0,
+      "f1_macro": 1.0,
+      "f1_weighted": 1.0,
+      "mcc": 1.0,
+      "false_positive_rate": 0.0,
+      "confusion_matrix": {
+        "tn_real_as_real": 48,
+        "fp_real_as_fake": 0,
+        "fn_fake_as_real": 0,
+        "tp_fake_as_fake": 2
+      }
+    },
+    "platt_calibration": {
+      "brier_score_p_real": 0.0001,
+      "ece_p_real": 0.007,
+      "reliability_bins": [
+        {
+          "bin": "[0.0,0.1)",
+          "count": 2,
+          "mean_predicted_p_real": 0.0085,
+          "observed_fraction_real": 0.0
+        },
+        {
+          "bin": "[0.9,1.0]",
+          "count": 48,
+          "mean_predicted_p_real": 0.993,
+          "observed_fraction_real": 1.0
+        }
+      ]
+    },
+    "mrav_alignment_hypotheses": {
+      "Contradicts": 116,
+      "Confirms": 49
+    }
+  }
+}

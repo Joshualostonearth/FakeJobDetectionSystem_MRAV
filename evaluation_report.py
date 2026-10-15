@@ -1,7 +1,7 @@
 """
 evaluation_report.py — Write evaluation_results/PERFORMANCE_REPORT.md from the metrics files.
 
-    python evaluation_report.py <after_out_dir> <baseline_out_dir> <report.md>
+    python evaluation_report.py <after_out_dir> <baseline_out_dir> <report.md> [<previous_app_out_dir>]
 
 Every number in the report is read from the predictions/metrics files produced by
 evaluate_test_split.py and evaluation_baseline_original.py; nothing is typed in by hand
@@ -42,8 +42,8 @@ def _systems(rows):
     out = {}
     app = [r for r in rows if "app" in r]
     if len(app) == len(rows):
-        out["Obj 2 app filter (HIGH RISK = fake)"] = [int(r["app"]["risk_level"] == "HIGH RISK") for r in rows]
-        out["Obj 2 app filter (HIGH or MEDIUM RISK = fake)"] = [int(r["app"]["risk_level"] in ("HIGH RISK", "MEDIUM RISK")) for r in rows]
+        out["App risk level: HIGH RISK = fake"] = [int(r["app"]["risk_level"] == "HIGH RISK") for r in rows]
+        out["App risk level: HIGH or MEDIUM RISK = fake"] = [int(r["app"]["risk_level"] in ("HIGH RISK", "MEDIUM RISK")) for r in rows]
         out["Obj 1b nearest FAISS neighbour label"] = [
             int(sorted(r["app"]["evidence"], key=lambda e: e["distance"])[0]["fraudulent"] == 1) if r["app"]["evidence"] else 0
             for r in rows]
@@ -74,7 +74,7 @@ def _row(name, y, pred, ci=False):
     return "| " + " | ".join(cells) + " |"
 
 
-def main(after_dir, baseline_dir, report_path):
+def main(after_dir, baseline_dir, report_path, previous_dir=None):
     after_rows = _load_rows(after_dir)
     base_rows = _load_rows(baseline_dir)
     after = json.load(open(Path(after_dir) / "performance_metrics.json", encoding="utf-8"))
@@ -107,10 +107,19 @@ def main(after_dir, baseline_dir, report_path):
         "",
         "## After the fixes (current code)",
         "",
+        "The app's analysis (`pipeline_bridge.analyze_extracted_offer`) runs `run_full_pipeline`; its risk level is "
+        "the final verdict mapped as HIGH_RISK_SCAM/SUSPICIOUS_FAKE → HIGH, UNCERTAIN_NEEDS_VERIFICATION → MEDIUM "
+        "(call recommended), VERIFIED_REAL → LOW. No phone call is part of these numbers.",
+        "",
         hdr + " 95% bootstrap CI |",
         sep + "---|",
     ]
     lines += [_row(n, y, p, ci=True) for n, p in after_sys.items()]
+    if previous_dir:
+        yp, prev_sys = _systems(_load_rows(previous_dir))
+        lines += ["", "## Previous app version (fixed code, app risk from Run_Objective_2_Filter), same postings", "",
+                  hdr, sep]
+        lines += [_row(n, yp, p) for n, p in prev_sys.items() if n.startswith("App risk level")]
     lines += ["", "## Original code (before any change), same postings", "", hdr, sep]
     lines += [_row(n, yb, p) for n, p in base_sys.items()]
     mrav = after["obj2_app_filter"]["mrav_llm_verdict"]
@@ -135,4 +144,4 @@ def main(after_dir, baseline_dir, report_path):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])
