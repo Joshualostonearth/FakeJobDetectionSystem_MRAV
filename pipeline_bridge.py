@@ -366,7 +366,8 @@ def handle_phone_verification(
 ) -> Dict[str, Any]:
     """
     Runs Objective 3 voice verification for an offer already analysed by
-    handle_ui_submission() and combines it with the FAISS evidence via DST.
+    handle_ui_submission() and re-runs Objective 4 on that analysis's
+    Objective 2 result plus the call's voice evidence.
 
     Blocks until the WebRTC call completes or times out.
 
@@ -386,4 +387,5 @@ def handle_phone_verification(
         scam_probability=analysis_result.get("scam_probability"),
         offer_text=analysis_result.get("offer_text", ""),
         on_progress=on_progress,
+        obj2_credibility=(analysis_result.get("full_pipeline") or {}).get("obj2_credibility"),
     )

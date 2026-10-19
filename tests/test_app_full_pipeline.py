@@ -40,3 +40,32 @@ def test_clean_text_is_low_risk():
     assert res["risk_level"] == "LOW RISK"
     assert res["voice_recommended"] is False
     assert 0 <= res["trust_score"] <= 100
+
+
+def _call_with_signals(res, voice_signals):
+    """handle_phone_verification with the call replaced by fixed voice signals."""
+    def fake_voice_step(result, masses, *args, **kwargs):
+        result["voice_verification"] = {"voice_signals": voice_signals}
+
+    with patch("voice_verification_bridge._run_voice_step", side_effect=fake_voice_step), \
+         patch.object(pipeline_bridge, "check_voice_services", return_value=None):
+        return pipeline_bridge.handle_phone_verification(res)
+
+
+def test_post_call_verdict_uses_objective4_on_obj2_result():
+    res = _analyze(0.01)
+    vres = _call_with_signals(res, {
+        "company_reached": True, "company_denied_role": True, "suspicious_response": False,
+        "source_confidence": 0.9, "extraction_confidence": 0.9,
+    })
+    # Voice-denial override from apply_verification_override, not a DST-only string
+    assert vres["final_verdict"] == "HIGH_RISK_SCAM"
+    assert "denied role" in vres["override_reason"]
+    assert vres["calibrated_confidence"] == 0.02
+
+
+def test_post_call_without_signals_keeps_obj2_verdict():
+    res = _analyze(0.01)
+    vres = _call_with_signals(res, None)
+    assert vres["final_verdict"] == res["final_verdict"]
+    assert vres["calibrated_confidence"] == res["full_pipeline"]["final_verification"]["calibrated_confidence"]

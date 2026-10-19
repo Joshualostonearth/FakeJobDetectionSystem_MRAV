@@ -24,7 +24,7 @@ except (ImportError, AttributeError):
 import html
 
 import streamlit as st
-from pipeline_bridge import handle_ui_submission, handle_phone_verification
+from pipeline_bridge import handle_ui_submission, handle_phone_verification, VERDICT_TO_RISK_LEVEL
 from ocr_engine import init_ocr_reader
 from search_engine import EvidenceRetriever
 
@@ -625,12 +625,16 @@ if res:
     vres = st.session_state.voice_result
     if vres:
         verdict = vres.get("final_verdict") or "UNCERTAIN"
-        if "Fake" in verdict:
-            verdict_class = "badge-high-risk"
-        elif "Real" in verdict:
-            verdict_class = "badge-low-risk"
-        else:
-            verdict_class = "badge-med-risk"
+        risk = VERDICT_TO_RISK_LEVEL.get(verdict)
+        if risk is None:
+            # DST-only verdict strings ("Likely Fake" / "Likely Real") when Obj2 was unavailable
+            risk = "HIGH RISK" if "Fake" in verdict else "LOW RISK" if "Real" in verdict else "MEDIUM RISK"
+        verdict_class = {"HIGH RISK": "badge-high-risk", "LOW RISK": "badge-low-risk"}.get(risk, "badge-med-risk")
+        extra_rows = ""
+        if vres.get("calibrated_confidence") is not None:
+            extra_rows += f"<tr><th>Calibrated P(Real)</th><td>{vres['calibrated_confidence'] * 100:.1f}%</td></tr>"
+        if vres.get("override_reason"):
+            extra_rows += f"<tr><th>Override</th><td>{html.escape(vres['override_reason'])}</td></tr>"
 
         v_col1, v_col2 = st.columns([1, 1], gap="medium")
         with v_col1:
@@ -641,6 +645,7 @@ if res:
                     <tr><th>Belief: Real</th><td>{(vres.get('final_belief_real') or 0.0) * 100:.1f}%</td></tr>
                     <tr><th>Belief: Fake</th><td>{(vres.get('final_belief_fake') or 0.0) * 100:.1f}%</td></tr>
                     <tr><th>Uncertain</th><td>{(vres.get('final_belief_uncertain') or 0.0) * 100:.1f}%</td></tr>
+                    {extra_rows}
                 </table>
                 """,
                 unsafe_allow_html=True,

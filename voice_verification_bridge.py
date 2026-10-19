@@ -347,10 +347,17 @@ def verify_offer_by_phone(
     scam_probability: Optional[float] = None,
     offer_text: str = "",
     on_progress: Optional[Callable[[str, int], None]] = None,
+    obj2_credibility: Optional[dict] = None,
 ) -> dict:
     """
     Run voice verification for an offer analysed by the Streamlit UI and
-    combine it with the FAISS evidence (and the text classifier, if given) via DST.
+    produce the final verdict with the call's evidence included.
+
+    With obj2_credibility (the Objective 2 result of the analysis), the verdict
+    comes from Objective 4 (run_objective4): Obj2's retained evidence, the text
+    classifier and the voice signals combined via DST, Platt-calibrated, with the
+    voice and Obj2 flag overrides. Without it, the raw FAISS evidence is combined
+    via DST only.
 
     Args:
         offer_id:           Identifier for this offer (used in the claim ID)
@@ -362,9 +369,13 @@ def verify_offer_by_phone(
         scam_probability:   Text classifier P(scam), combined as another mass if given
         offer_text:         The analysed offer text, used to tailor the call questions
         on_progress:        Optional callback(text, step) for Objective 3 progress
+        obj2_credibility:   Objective2OutputPayload dump from run_full_pipeline (its
+                            "obj2_credibility" field); not re-evaluated
 
     Returns:
-        Dict with the same final_* / voice_* fields as run_full_verification().
+        Dict with the same final_* / voice_* fields as run_full_verification(), plus
+        calibrated_confidence, override_reason and final_verification when
+        obj2_credibility is given.
     """
     print("\n" + "=" * 60)
     print("🔗 VOICE VERIFICATION BRIDGE — UI → Obj3 → DST")
@@ -381,6 +392,12 @@ def verify_offer_by_phone(
         "final_belief_fake": None,
         "final_belief_uncertain": None,
     }
+
+    if obj2_credibility is not None:
+        return _verify_with_objective4(
+            result, obj2_credibility, entities, voice_config, suspicion_reasons,
+            scam_probability, offer_text, on_progress,
+        )
 
     dst = DSTEngine()
 
@@ -407,4 +424,44 @@ def verify_offer_by_phone(
     _run_voice_step(result, masses, entities, voice_config, suspicion_reasons, offer_text, on_progress)
 
     _combine_masses(dst, masses, result)
+    return result
+
+
+def _verify_with_objective4(
+    result: dict,
+    obj2_credibility: dict,
+    entities: dict,
+    voice_config: Optional[dict],
+    suspicion_reasons: Optional[list],
+    scam_probability: Optional[float],
+    offer_text: str,
+    on_progress: Optional[Callable[[str, int], None]],
+) -> dict:
+    """Run the call, then Objective 4 on the Obj2 result plus the call's voice signals."""
+    from full_pipeline_orchestrator import run_objective4
+
+    print("\n--- Bridge Step 1: Running Voice Verification (Objective 3) ---")
+    # The voice mass is built again inside run_objective4 from the voice signals
+    _run_voice_step(result, [], entities, voice_config, suspicion_reasons, offer_text, on_progress)
+    voice_signals = (result["voice_verification"] or {}).get("voice_signals") or None
+
+    print("\n--- Bridge Step 2: Objective 4 on the Objective 2 result + voice evidence ---")
+    # The call was placed by the UI's risk decision, so the voice evidence is used
+    # regardless of Obj2's routing_decision.
+    obj4 = run_objective4(
+        Objective2OutputPayload.model_validate(obj2_credibility),
+        scam_probability=scam_probability,
+        voice_analysis=voice_signals,
+    )
+    combined = obj4["dst_combined_masses"]
+    fv = obj4["final_verification"]
+
+    result["dst_combined"] = combined
+    result["final_belief_real"] = round(combined.get("REAL", 0.0), 4)
+    result["final_belief_fake"] = round(combined.get("FAKE", 0.0), 4)
+    result["final_belief_uncertain"] = round(combined.get("UNCERTAIN", 1.0), 4)
+    result["final_verdict"] = fv["final_verdict"]
+    result["calibrated_confidence"] = fv["calibrated_confidence"]
+    result["override_reason"] = fv["override_reason"]
+    result["final_verification"] = fv
     return result

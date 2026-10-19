@@ -73,6 +73,8 @@ class PlattScaler:
 VERIFIED_REAL_MIN_CONFIDENCE: float = 0.75   # >= → VERIFIED_REAL
 SCAM_MAX_CONFIDENCE: float = 0.60            # <= → SUSPICIOUS_FAKE (is_scam); middle of the stable range on the validation split
 HIGH_RISK_MAX_CONFIDENCE: float = 0.25       # <= → HIGH_RISK_SCAM
+# Confidence given to an offer that no retrieved record confirms (UNCERTAIN band, not scam)
+UNVERIFIED_MAX_CONFIDENCE: float = 0.65
 
 # Global singleton instance
 _platt_scaler = PlattScaler()
@@ -171,6 +173,7 @@ def apply_verification_override(
     dst_result: Dict[str, float],
     flags: List[Dict],
     voice_signals: Optional[Dict] = None,
+    alignment_hypotheses: Optional[List[str]] = None,
 ) -> Dict:
     """
     Person 4 Deliverable: Applies safety & verification overrides to produce final verdict.
@@ -180,6 +183,8 @@ def apply_verification_override(
         dst_result: Combined DST mass dict
         flags: List of CredibilityFlags / warning strings from Obj 2
         voice_signals: Optional structured voice signals from Obj 3
+        alignment_hypotheses: M-RAV hypotheses ("Confirms"/"Contradicts"/"Neutral") of the
+            retained documents; omitted or empty when the LLM alignment did not run
 
     Returns:
         Dict with final_verdict, calibrated_confidence, is_scam, override_applied, override_reason
@@ -219,7 +224,20 @@ def apply_verification_override(
             override_reason = f"CRITICAL EVIDENCE OVERRIDE: {flag_msg}"
             final_conf = min(final_conf, 0.20)
 
-    # 3. Determine Final Verdict Recommendation
+    # 3. No retrieved record confirms the offer and most contradict it: nothing verifies the
+    # claimed company, so the offer cannot be VERIFIED_REAL without phone verification.
+    if not override_applied and not voice_signals and alignment_hypotheses:
+        n_contradicts = alignment_hypotheses.count("Contradicts")
+        if "Confirms" not in alignment_hypotheses and n_contradicts * 2 >= len(alignment_hypotheses):
+            if final_conf >= VERIFIED_REAL_MIN_CONFIDENCE:
+                override_applied = True
+                override_reason = (
+                    f"UNVERIFIED OVERRIDE: {n_contradicts} of {len(alignment_hypotheses)} retrieved "
+                    "record(s) contradict the offer and none confirm it; phone verification needed."
+                )
+                final_conf = UNVERIFIED_MAX_CONFIDENCE
+
+    # 4. Determine Final Verdict Recommendation
     if final_conf >= VERIFIED_REAL_MIN_CONFIDENCE:
         verdict = "VERIFIED_REAL"
         is_scam = False
