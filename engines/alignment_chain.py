@@ -22,6 +22,8 @@ from schemas.credibility_schema import MRAVTriple
 load_dotenv()
 
 OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "ministral-3")
+# Local CPU inference needs several seconds per call; on timeout the mock triple is used
+OLLAMA_TIMEOUT: float = float(os.getenv("OLLAMA_ALIGNMENT_TIMEOUT", "60"))
 
 
 def _build_alignment_prompt(entities: JobOfferEntities, doc: VectorDocument) -> str:
@@ -136,7 +138,7 @@ def generate_alignment_triple(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2,
                 max_tokens=512,
-                timeout=1.5,
+                timeout=OLLAMA_TIMEOUT,
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
