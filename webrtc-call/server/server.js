@@ -1,12 +1,4 @@
-<<<<<<< HEAD
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const { execFile, exec } = require('child_process');
-=======
 'use strict';
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 
 // ── Environment ───────────────────────────────────────────────────────────────
 require('dotenv').config();
@@ -21,18 +13,13 @@ const fs       = require('fs');
 // ── Person 1 modules ──────────────────────────────────────────────────────────
 const { transcribeAudio }                   = require('./audio/stt');
 const { synthesizeSpeech }                  = require('./audio/tts');
-const { mimeToExt, cleanupFile }            = require('./audio/audio-utils');
+const { mimeToExt, cleanupFile, getTempFilePath } = require('./audio/audio-utils');
 const { registerTTSFile, getTTSFile, removeTTSFile } = require('./audio/audio-store');
 const { sendTranscript, handleAgentResponse } = require('./interfaces/ai-interface');
 
 // ── Express setup ─────────────────────────────────────────────────────────────
 const app = express();
 app.use(express.json());
-<<<<<<< HEAD
-
-// Serve static files from the public directory
-=======
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 app.use(express.static(path.join(__dirname, '../public')));
 
 const server = http.createServer(app);
@@ -42,30 +29,12 @@ const io = new Server(server, {
     cors: { origin: '*' },
 });
 
-<<<<<<< HEAD
-const PORT = process.env.PORT || 3000;
-=======
 // ── Multer — audio upload storage ─────────────────────────────────────────────
 // Store uploaded audio in server/uploads/ with original extension preserved.
 // The uploads/ directory is created by audio-utils.js on module load.
 
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // Ensure uploads dir exists (audio-utils creates it, but belt-and-suspenders)
-        if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-        cb(null, UPLOADS_DIR);
-    },
-    filename: (req, file, cb) => {
-        const ext  = mimeToExt(file.mimetype);
-        const name = `upload_${Date.now()}.${ext}`;
-        cb(null, name);
-    },
-});
-
 const upload = multer({
-    storage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB max
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('audio/')) {
@@ -75,6 +44,8 @@ const upload = multer({
         }
     },
 });
+
+
 
 // ═════════════════════════════════════════════════════════════════════════════
 // REST API ROUTES
@@ -98,86 +69,86 @@ const upload = multer({
  * }
  */
 app.post('/api/audio', upload.single('audio'), async (req, res) => {
-    const audioPath = req.file?.path;
-
     // ── Validate ──────────────────────────────────────────────────────────────
-    if (!req.file || !audioPath) {
+    if (!req.file || !req.file.buffer) {
         console.error('[Audio] POST /api/audio — no audio file in request');
         return res.status(400).json({ success: false, error: 'No audio file received.' });
     }
 
-    console.log(`[Audio] Received upload: ${req.file.filename} (${req.file.size} bytes, ${req.file.mimetype})`);
+    console.log(`[Audio] Received upload: (${req.file.size} bytes, ${req.file.mimetype})`);
 
     try {
-        // ── STT ───────────────────────────────────────────────────────────────
-        let sttResult;
-        try {
-            sttResult = await transcribeAudio(audioPath);
-        } catch (sttErr) {
-            console.error('[STT] Transcription failed:', sttErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'STT transcription failed.', detail: sttErr.message });
+        // Forward the audio buffer to Python bridge
+        const ext = mimeToExt(req.file.mimetype);
+        const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+        const formData = new FormData();
+        formData.append('audio', blob, `recording.${ext}`);
+        
+        const bridgeRes = await fetch(`http://localhost:5000/bridge/process-audio?format=${ext}`, {
+            method: 'POST',
+            body: formData,
+        });
+        
+        if (!bridgeRes.ok) {
+            throw new Error(`Bridge returned HTTP ${bridgeRes.status}: ${await bridgeRes.text()}`);
         }
-
-        const transcript = {
-            type:      'transcript',
-            text:      sttResult.transcript,
-            timestamp: Date.now(),
-        };
+        
+        const result = await bridgeRes.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Bridge error');
+        }
 
         // Emit transcript to any browser listeners via Socket.IO
-        io.emit('transcript', transcript);
-        console.log('[Audio] Emitted transcript event via Socket.IO');
-
-        // ── AI Interface ──────────────────────────────────────────────────────
-        let agentResponse;
-        try {
-            agentResponse = await sendTranscript(transcript);
-        } catch (aiErr) {
-            console.error('[AI Interface] Failed:', aiErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'AI interface failed.', detail: aiErr.message });
+        if (result.transcript) {
+            io.emit('transcript', {
+                type: 'transcript',
+                text: result.transcript,
+                timestamp: Date.now(),
+            });
         }
 
-        // ── TTS ───────────────────────────────────────────────────────────────
-        let ttsResult;
-        try {
-            ttsResult = await synthesizeSpeech(agentResponse.text);
-        } catch (ttsErr) {
-            console.error('[TTS] Synthesis failed:', ttsErr.message);
-            cleanupFile(audioPath);
-            return res.status(500).json({ success: false, error: 'TTS synthesis failed.', detail: ttsErr.message });
+        let ttsId = null;
+
+        // TTS audio is returned separately — register it
+        if (result.tts_audio_b64) {
+            const audioBuf = Buffer.from(result.tts_audio_b64, 'base64');
+            const audioPath = getTempFilePath('mp3');
+            fs.writeFileSync(audioPath, audioBuf);
+            ttsId = registerTTSFile(audioPath, result.tts_mime_type || 'audio/mpeg');
+            
+            io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                ttsUrl: `/api/tts/${ttsId}`,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            console.log(`[Audio] Pipeline complete. TTS ID: ${ttsId}`);
+        } else if (result.agent_text) {
+             io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            console.log(`[Audio] Pipeline complete. No TTS generated.`);
+        } else {
+             console.log(`[Audio] Pipeline complete. No agent response.`);
         }
-
-        // Register TTS file and get an ID for the browser to fetch it
-        const ttsId = registerTTSFile(ttsResult.audioPath, ttsResult.mimeType);
-
-        // Notify browser via Socket.IO so the TTS can be played through WebRTC
-        io.emit('agent-response', {
-            type:                'agent_response',
-            text:                agentResponse.text,
-            ttsUrl:              `/api/tts/${ttsId}`,
-            conversation_complete: agentResponse.conversation_complete,
-        });
-
-        console.log(`[Audio] Pipeline complete. TTS ID: ${ttsId}`);
-
-        // ── Cleanup uploaded audio ────────────────────────────────────────────
-        cleanupFile(audioPath);
-
-        return res.json({
-            success:              true,
-            transcript:           sttResult.transcript,
-            duration:             sttResult.duration,
-            agentResponse:        agentResponse.text,
+        
+        return res.json({ 
+            success: true, 
+            transcript: result.transcript,
+            agentResponse: result.agent_text,
             ttsId,
-            conversationComplete: agentResponse.conversation_complete,
+            conversationComplete: result.conversation_complete,
+            questionIndex: result.question_index,
+            answerStatus: result.answer_status
         });
 
     } catch (err) {
         console.error('[Audio] Unexpected error in /api/audio:', err);
-        cleanupFile(audioPath);
-        return res.status(500).json({ success: false, error: 'Internal server error.' });
+        return res.status(500).json({ success: false, error: 'Internal server error.', detail: err.message });
     }
 });
 
@@ -262,202 +233,104 @@ app.post('/api/test-tts', async (req, res) => {
     }
 });
 
-/**
- * GET /api/status
- * Health check — confirms server and modules are running.
- */
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+    let bridgeStatus = 'unknown';
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/status');
+        if (bridgeRes.ok) {
+            bridgeStatus = 'connected';
+        } else {
+            bridgeStatus = 'error';
+        }
+    } catch {
+        bridgeStatus = 'disconnected';
+    }
+
     res.json({
         status:      'ok',
-        sttProvider: process.env.STT_PROVIDER || 'mock',
-        ttsProvider: process.env.TTS_PROVIDER || 'mock',
+        sttProvider: process.env.STT_PROVIDER || 'bridge',
+        ttsProvider: process.env.TTS_PROVIDER || 'edgetts',
+        bridgeStatus
     });
+});
+
+/**
+ * POST /api/start-session
+ * Starts a new verification session via the Python bridge.
+ */
+app.post('/api/start-session', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/start-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body),
+        });
+        const data = await bridgeRes.json();
+        return res.status(bridgeRes.status).json(data);
+    } catch (err) {
+        console.error('[Session] Error starting session:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * GET /api/session-status
+ * Checks the status of the current verification session.
+ */
+app.get('/api/session-status', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/status');
+        const data = await bridgeRes.json();
+        return res.status(bridgeRes.status).json(data);
+    } catch (err) {
+        console.error('[Session] Error checking session status:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * POST /api/speak-first
+ * Triggers the Q1 greeting after the phone user says "Hello?".
+ */
+app.post('/api/speak-first', async (req, res) => {
+    try {
+        const bridgeRes = await fetch('http://localhost:5000/bridge/speak-first', {
+            method: 'POST',
+        });
+        const result = await bridgeRes.json();
+        
+        if (result.success && result.tts_audio_b64) {
+            const audioBuf = Buffer.from(result.tts_audio_b64, 'base64');
+            const audioPath = getTempFilePath('mp3');
+            fs.writeFileSync(audioPath, audioBuf);
+            const ttsId = registerTTSFile(audioPath, result.tts_mime_type || 'audio/mpeg');
+            
+            io.emit('agent-response', {
+                type: 'agent_response',
+                text: result.agent_text,
+                ttsUrl: `/api/tts/${ttsId}`,
+                conversation_complete: result.conversation_complete,
+                questionIndex: result.question_index,
+            });
+            
+            return res.json({ success: true, ttsId, text: result.agent_text });
+        }
+        return res.status(bridgeRes.status).json(result);
+    } catch (err) {
+        console.error('[Session] Error in speak-first:', err);
+        return res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SOCKET.IO SIGNALING  (PRESERVED EXACTLY — DO NOT MODIFY BELOW THIS LINE)
 // ═════════════════════════════════════════════════════════════════════════════
 
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 const ROOM = 'voice-room';
-const PROJECT_ROOT = path.join(__dirname, '../..');
 
-function extractJSON(str) {
-  const start = str.indexOf('{');
-  const end = str.lastIndexOf('}');
-  if (start !== -1 && end > start) {
-    try {
-      return JSON.parse(str.substring(start, end + 1));
-    } catch (e) {}
-  }
-  return { raw: str.trim() };
-}
-
-// Helper to run python script commands
-function runPython(args, cwd = PROJECT_ROOT) {
-  return new Promise((resolve, reject) => {
-    execFile('python', args, { cwd, maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
-      if (error && !stdout) {
-        console.error(`[Python Exec Error]`, stderr || error.message);
-        return reject(error);
-      }
-      resolve(extractJSON(stdout));
-    });
-  });
-}
-
-// Helper to run python inline code
-function runPythonInline(code, args = [], cwd = PROJECT_ROOT) {
-  return new Promise((resolve, reject) => {
-    const fullArgs = ['-c', code, ...args];
-    execFile('python', fullArgs, { cwd, maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
-      if (error && !stdout) {
-        console.error(`[Python Inline Error]`, stderr || error.message);
-        return reject(error);
-      }
-      resolve(extractJSON(stdout));
-    });
-  });
-}
-
-// ──────────────────────────────────────────────
-// API Endpoints
-// ──────────────────────────────────────────────
-
-// 1. Web Scraper Endpoint (testscraper.py integration)
-app.post('/api/scrape', async (req, res) => {
-  const { url, prompt } = req.body;
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required for scraping.' });
-  }
-
-  console.log(`[API /api/scrape] Triggering testscraper.py for URL: ${url}`);
-  try {
-    const args = ['testscraper.py', '--url', url, '--json-only'];
-    if (prompt) {
-      args.push('--prompt', prompt);
-    }
-    const result = await runPython(args);
-    console.log(`[API /api/scrape] Successfully scraped phone: ${result.phone_number || result.email_or_phone}`);
-    return res.json({ success: true, data: result });
-  } catch (err) {
-    console.error(`[API /api/scrape Failed]`, err.message);
-    return res.status(500).json({ error: 'Scraping failed', details: err.message });
-  }
-});
-
-// 2. Initialize Voice Verification Session
-app.post('/api/voice/init', async (req, res) => {
-  const jobEntities = req.body || {};
-  console.log(`[API /api/voice/init] Initializing call session for: ${jobEntities.company_name || 'Target Company'}`);
-
-  const code = `
-import json, sys
-sys.path.insert(0, '.')
-from integration.voice_agent_api import init_verification_session
-entities = json.loads(sys.argv[1])
-result = init_verification_session(entities)
-print(json.dumps(result))
-`;
-
-  try {
-    const result = await runPythonInline(code, [JSON.stringify(jobEntities)]);
-    return res.json({ success: true, ...result });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to initialize voice session', details: err.message });
-  }
-});
-
-// 3. Process Transcript Turn (Person 1 STT -> Person 2 Voice Agent)
-app.post('/api/voice/turn', async (req, res) => {
-  const { session_id, text, timestamp } = req.body;
-  if (!session_id || !text) {
-    return res.status(400).json({ error: 'session_id and text are required' });
-  }
-
-  const code = `
-import json, sys
-sys.path.insert(0, '.')
-from integration.voice_agent_api import process_transcript_turn
-session_id = sys.argv[1]
-turn_data = json.loads(sys.argv[2])
-result = process_transcript_turn(session_id, turn_data)
-print(json.dumps(result))
-`;
-
-  const turnInput = { type: 'transcript', text, timestamp: timestamp || 0.0 };
-
-  try {
-    const result = await runPythonInline(code, [session_id, JSON.stringify(turnInput)]);
-    return res.json({ success: true, response: result });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to process turn', details: err.message });
-  }
-});
-
-// 4. Finalize Call Session & Run Consensus Credibility Filter
-app.post('/api/voice/finalize', async (req, res) => {
-  const { session_id } = req.body;
-  if (!session_id) {
-    return res.status(400).json({ error: 'session_id is required' });
-  }
-
-  const code = `
-import json, sys
-sys.path.insert(0, '.')
-from integration.voice_agent_api import finalize_session, hand_off_to_objective_2
-session_id = sys.argv[1]
-session_data = finalize_session(session_id)
-state = session_data.get('verification_state', {})
-signals = session_data.get('voice_signals', {})
-obj1_context = state.get('context', {})
-report = hand_off_to_objective_2(obj1_context, [], signals)
-print(json.dumps({'signals': signals, 'report': report}))
-`;
-
-  try {
-    const result = await runPythonInline(code, [session_id]);
-    return res.json({ success: true, data: result });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to finalize session', details: err.message });
-  }
-});
-
-// Socket.IO WebRTC Signaling Setup
 io.on('connection', (socket) => {
     console.log(`[Socket] User connected: ${socket.id}`);
 
-<<<<<<< HEAD
-  socket.on('join', () => {
-    socket.join(ROOM);
-    console.log(`[Socket] User ${socket.id} joined room: ${ROOM}`);
-    socket.to(ROOM).emit('user-joined', socket.id);
-  });
-
-  socket.on('offer', (data) => {
-    socket.to(ROOM).emit('offer', data);
-  });
-
-  socket.on('answer', (data) => {
-    socket.to(ROOM).emit('answer', data);
-  });
-
-  socket.on('ice-candidate', (data) => {
-    socket.to(ROOM).emit('ice-candidate', data);
-  });
-
-  socket.on('hangup', () => {
-    socket.to(ROOM).emit('hangup', socket.id);
-  });
-
-  socket.on('disconnect', () => {
-    socket.to(ROOM).emit('hangup', socket.id);
-  });
-});
-
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Server] Voice Agent Server running on http://0.0.0.0:${PORT}`);
-=======
     // When a user joins the room
     socket.on('join', () => {
         socket.join(ROOM);
@@ -506,6 +379,4 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Signaling + API server running on http://0.0.0.0:${PORT}`);
     console.log(`[Server] STT provider: ${process.env.STT_PROVIDER || 'mock'}`);
     console.log(`[Server] TTS provider: ${process.env.TTS_PROVIDER || 'mock'}`);
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 });
-

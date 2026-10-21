@@ -46,6 +46,9 @@ async function synthesizeSpeech(text) {
     console.log(`[TTS] Synthesizing: "${text.substring(0, 80)}${text.length > 80 ? '...' : ''}"`);
 
     switch (TTS_PROVIDER) {
+        case 'edgetts':
+            return await _synthesizeWithEdgeTTS(text);
+
         case 'mock':
         default:
             return await _synthesizeWithMock(text);
@@ -143,6 +146,42 @@ function _generateSilentWAV(numSamples, sampleRate = 16000) {
     // Samples are zero (silence) — already zeroed by Buffer.alloc
 
     return buf;
+}
+
+// ── Provider: Edge-TTS (via Python Bridge) ────────────────────────────────────
+
+async function _synthesizeWithEdgeTTS(text) {
+    console.log(`[TTS] Synthesizing with Edge-TTS (via bridge): "${text.substring(0, 50)}..."`);
+    
+    // We use the global fetch API (available in Node 18+)
+    const res = await fetch('http://localhost:5000/bridge/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Bridge returned HTTP ${res.status}: ${errorText}`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const audioBuffer = Buffer.from(arrayBuffer);
+    
+    const audioPath = getTempFilePath('mp3');
+    fs.writeFileSync(audioPath, audioBuffer);
+    
+    // Estimate duration: ~0.35s per word for English
+    const wordCount = text.split(/\s+/).length;
+    const durationSec = Math.max(1, wordCount * 0.35);
+
+    console.log(`[TTS] Edge-TTS audio generated: ${path.basename(audioPath)} (${durationSec.toFixed(1)}s estimate)`);
+
+    return {
+        audioPath,
+        mimeType: 'audio/mpeg',
+        durationEstimate: durationSec,
+    };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

@@ -2,550 +2,30 @@
 <html lang="en">
 
 <head>
-<<<<<<< HEAD
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>M-RAV Voice Verification Agent & Web Scraper</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="/socket.io/socket.io.js"></script>
-  <style>
-    :root {
-      --bg-dark: #0b0f19;
-      --panel-bg: rgba(22, 27, 44, 0.75);
-      --panel-border: rgba(255, 255, 255, 0.08);
-      --accent-cyan: #06b6d4;
-      --accent-emerald: #10b981;
-      --accent-purple: #8b5cf6;
-      --accent-rose: #f43f5e;
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --card-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Outfit', sans-serif;
-      background: radial-gradient(circle at top right, #111827, #0b0f19 80%);
-      color: var(--text-main);
-      min-height: 100vh;
-      padding: 24px;
-      line-height: 1.5;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    /* Header */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 24px;
-      margin-bottom: 24px;
-      border-bottom: 1px solid var(--panel-border);
-    }
-
-    .logo-group {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-icon {
-      width: 42px;
-      height: 42px;
-      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
-    }
-
-    h1 {
-      font-size: 24px;
-      font-weight: 700;
-      background: linear-gradient(to right, #ffffff, #a5f3fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: var(--accent-emerald);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--accent-emerald);
-      box-shadow: 0 0 8px var(--accent-emerald);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.2); }
-    }
-
-    /* Grid Layout */
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-    }
-
-    @media (max-width: 960px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Panel Component */
-    .panel {
-      background: var(--panel-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--panel-border);
-      border-radius: 18px;
-      padding: 24px;
-      box-shadow: var(--card-glow);
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .panel-title {
-      font-size: 18px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .panel-icon {
-      color: var(--accent-cyan);
-    }
-
-    /* Form Inputs */
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    input[type="text"], textarea {
-      width: 100%;
-      padding: 12px 16px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--panel-border);
-      border-radius: 10px;
-      color: #fff;
-      font-family: inherit;
-      font-size: 14px;
-      transition: all 0.2s ease;
-    }
-
-    input[type="text"]:focus, textarea:focus {
-      outline: none;
-      border-color: var(--accent-cyan);
-      box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
-    }
-
-    /* Buttons */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s ease;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--accent-cyan), #0284c7);
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.3);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
-    }
-
-    .btn-success {
-      background: linear-gradient(135deg, var(--accent-emerald), #059669);
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
-    }
-
-    .btn-danger {
-      background: linear-gradient(135deg, var(--accent-rose), #e11d48);
-      color: #fff;
-    }
-
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.14);
-    }
-
-    .btn-full {
-      width: 100%;
-    }
-
-    /* SCRAPED PHONE DISPLAY CARD (PROMINENT DISPLAY) */
-    .phone-card {
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(139, 92, 246, 0.15));
-      border: 2px solid var(--accent-cyan);
-      border-radius: 16px;
-      padding: 20px;
-      margin-top: 16px;
-      box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
-      animation: fadeIn 0.4s ease;
-    }
-
-    .phone-card-label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--accent-cyan);
-      font-weight: 700;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .phone-number-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 28px;
-      font-weight: 700;
-      color: #ffffff;
-      letter-spacing: 1px;
-      text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-      word-break: break-all;
-    }
-
-    .phone-meta {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      font-size: 13px;
-    }
-
-    .meta-tag {
-      background: rgba(255, 255, 255, 0.08);
-      padding: 4px 10px;
-      border-radius: 6px;
-      color: #e5e7eb;
-    }
-
-    /* Transcript & Chat */
-    .transcript-box {
-      height: 320px;
-      overflow-y: auto;
-      background: rgba(10, 15, 26, 0.8);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .message {
-      max-width: 85%;
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.4;
-      animation: fadeIn 0.3s ease;
-    }
-
-    .message.agent {
-      align-self: flex-start;
-      background: rgba(6, 182, 212, 0.15);
-      border: 1px solid rgba(6, 182, 212, 0.3);
-      color: #e0f2fe;
-    }
-
-    .message.caller {
-      align-self: flex-end;
-      background: rgba(139, 92, 246, 0.15);
-      border: 1px solid rgba(139, 92, 246, 0.3);
-      color: #f3e8ff;
-    }
-
-    .message-speaker {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-      opacity: 0.8;
-    }
-
-    /* Progress & Objectives */
-    .objective-tracker {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
-
-    .obj-step {
-      flex: 1;
-      height: 6px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 3px;
-      transition: all 0.3s ease;
-    }
-
-    .obj-step.active {
-      background: var(--accent-cyan);
-      box-shadow: 0 0 8px var(--accent-cyan);
-    }
-
-    .obj-step.completed {
-      background: var(--accent-emerald);
-    }
-
-    /* Report Card */
-    .report-card {
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid var(--panel-border);
-      border-radius: 14px;
-      padding: 16px;
-      margin-top: 16px;
-    }
-
-    .score-badge {
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--accent-emerald);
-    }
-
-    .score-badge.risk-high {
-      color: var(--accent-rose);
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Loading Spinner */
-    .spinner {
-      width: 18px;
-      height: 18px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
-=======
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="WebRTC Voice Agent — Person 1 audio infrastructure for AI voice verification">
     <title>WebRTC Voice Agent</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 </head>
 
 <body>
-<<<<<<< HEAD
-  <div class="container">
-    <header>
-      <div class="logo-group">
-        <div class="logo-icon">🎙️</div>
-        <div>
-          <h1>M-RAV Voice Verification Agent</h1>
-          <div class="subtitle">ScrapegraphAI Web Scraper + Voice Agent Verification Pipeline</div>
-        </div>
-      </div>
-      <div class="status-badge">
-        <div class="status-dot"></div>
-        <span id="serverStatus">System Online</span>
-      </div>
-    </header>
-
-    <div class="grid">
-      <!-- PANEL 1: WEB SCRAPER (testscraper.py) -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span class="panel-icon">🌐</span>
-            <span>Step 1: Web Scraper (testscraper.py)</span>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="scrapeUrl">Company / Career Page URL</label>
-          <input type="text" id="scrapeUrl" value="https://www.google.com/about/careers/applications/" placeholder="https://company.com/careers/job-id">
-        </div>
-
-        <div class="form-group">
-          <label for="scrapePrompt">Extraction Prompt</label>
-          <input type="text" id="scrapePrompt" value="Extract official company name, primary contact phone number, corporate address, recruiter name, and job title." placeholder="Extraction prompt">
-        </div>
-
-        <button id="btnScrape" class="btn btn-primary btn-full" onclick="startScraping()">
-          <span>🕷️ Scrape Web Page</span>
-        </button>
-
-        <!-- PROMINENT SCRAPED PHONE DISPLAY CARD -->
-        <div id="phoneDisplayCard" class="phone-card" style="display: none;">
-          <div class="phone-card-label">
-            <span>📞 SCRAPED COMPANY PHONE NUMBER</span>
-          </div>
-          <div id="scrapedPhoneNumber" class="phone-number-value">+1 (800) 555-0199</div>
-          
-          <div class="phone-meta">
-            <span class="meta-tag">Company: <b id="scrapedCompany">Target Company</b></span>
-            <span class="meta-tag">Role: <b id="scrapedRole">Open Position</b></span>
-            <span class="meta-tag">Recruiter: <b id="scrapedRecruiter">HR Office</b></span>
-            <span class="meta-tag">Engine: <b id="scrapedEngine">testscraper.py</b></span>
-          </div>
-
-          <button class="btn btn-success btn-full" style="margin-top: 14px;" onclick="attachToVoiceAgent()">
-            <span>📞 Attach Phone & Start Voice Agent Call</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- PANEL 2: VOICE AGENT CALL CONSOLE -->
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span class="panel-icon">🎧</span>
-            <span>Step 2: Voice Verification Agent</span>
-          </div>
-          <div id="callStateBadge" class="status-badge" style="background: rgba(255,255,255,0.05); color: #aaa;">
-            Call Idle
-          </div>
-        </div>
-
-        <!-- Objective Progress Bar -->
-        <div class="objective-tracker">
-          <div id="obj1" class="obj-step" title="Company Awareness"></div>
-          <div id="obj2" class="obj-step" title="Role Active"></div>
-          <div id="obj3" class="obj-step" title="Recruiter Legitimacy"></div>
-          <div id="obj4" class="obj-step" title="Application Portal"></div>
-          <div id="obj5" class="obj-step" title="Payment Check"></div>
-        </div>
-
-        <!-- Live Transcript Box -->
-        <div id="transcriptBox" class="transcript-box">
-          <div class="message agent">
-            <div class="message-speaker">System</div>
-            <div>Enter a URL above to scrape the company phone number and launch the verification call agent.</div>
-          </div>
-        </div>
-
-        <!-- Call Action Controls -->
-        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-          <button id="btnStartCall" class="btn btn-primary" style="flex: 1;" onclick="initCallSession()">
-            <span>📞 Call Scraped Phone</span>
-          </button>
-          <button id="btnMic" class="btn btn-secondary" onclick="toggleMic()" disabled title="Toggle Microphone">
-            <span>🎤 Mic</span>
-          </button>
-          <button id="btnEndCall" class="btn btn-danger" onclick="finalizeCallSession()" disabled>
-            <span>Hang Up</span>
-          </button>
-        </div>
-
-        <!-- Text Turn Fallback Input -->
-        <div class="form-group" style="margin-bottom: 0;">
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="turnInput" placeholder="Type caller answer (or speak via Mic)..." onkeydown="if(event.key==='Enter') sendTurn()" disabled>
-            <button id="btnSendTurn" class="btn btn-secondary" onclick="sendTurn()" disabled>Send</button>
-          </div>
-        </div>
-
-        <!-- Final Report Section -->
-        <div id="reportCard" class="report-card" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Trust & Credibility Score</div>
-              <div id="reportScore" class="score-badge">92 / 100</div>
-            </div>
-            <div id="reportRisk" class="status-badge" style="background: rgba(16,185,129,0.2); color: #10b981; font-size: 14px;">
-              LOW RISK
-            </div>
-          </div>
-          <div id="reportExplanation" style="margin-top: 10px; font-size: 13px; color: #d1d5db;"></div>
-        </div>
-      </div>
-=======
     <div class="app-shell">
-
-        <!-- ── Header ─────────────────────────────────────────────────────── -->
         <header class="app-header">
             <div class="header-left">
-                <div class="logo-mark"></div>
                 <div>
                     <h1>Voice Agent</h1>
                     <span class="subtitle">Person 1 — Audio Infrastructure</span>
                 </div>
             </div>
-            <div class="badge" id="audio-mode">MODE: HUMAN</div>
+            <div class="badge" id="audio-mode">Mode: Human</div>
         </header>
 
         <main class="main-grid">
-
-            <!-- ── Left column: Connection ──────────────────────────────── -->
             <section class="card" id="card-connection">
                 <h2 class="card-title">Connection</h2>
 
@@ -565,36 +45,55 @@
                 </div>
 
                 <div class="controls-group">
-                    <button id="btn-join"   class="btn btn-primary">Join Room</button>
-                    <button id="btn-call"   class="btn btn-success"  disabled>Call</button>
-                    <button id="btn-accept" class="btn btn-warning"   style="display:none;">Accept Call</button>
-                    <button id="btn-hangup" class="btn btn-danger"    disabled>Hang Up</button>
+                    <button id="btn-join" class="btn btn-primary">Join Room</button>
+                    <button id="btn-call" class="btn btn-success" disabled>Call</button>
+                    <button id="btn-accept" class="btn btn-warning" style="display:none;">Accept Call</button>
+                    <button id="btn-hangup" class="btn btn-danger" disabled>Hang Up</button>
                 </div>
             </section>
 
-            <!-- ── Right column: AI Pipeline ────────────────────────────── -->
-            <section class="card" id="card-ai">
-                <h2 class="card-title">AI Pipeline</h2>
+            <div class="right-column">
 
-                <div class="status-list">
-                    <div class="status-row">
-                        <span class="status-label">AI Status</span>
-                        <span class="status-value" id="ai-status">Idle</span>
+                <section class="card" id="card-session">
+                    <h2 class="card-title">Verification Session</h2>
+
+                    <div class="session-input">
+                        <label for="input-file">Input JSON:</label>
+                        <select id="input-file" class="select-input">
+                            <option value="input/acme_tech_solutions_data_analyst_intern">Acme Tech - Data Analyst
+                                Intern</option>
+                        </select>
+                        <button id="btn-start-session" class="btn btn-primary" disabled>Start Session</button>
                     </div>
-                </div>
 
-                <div class="controls-group">
-                    <button id="btn-start-ai" class="btn btn-ai"     disabled>▶ Start Capture</button>
-                    <button id="btn-stop-ai"  class="btn btn-ai-stop" disabled>■ Stop &amp; Process</button>
-                    <button id="btn-test-tts" class="btn btn-secondary" disabled>🔊 Test TTS → WebRTC</button>
-                </div>
+                    <div class="questions-list" id="questions-list">
 
-                <p class="hint">
-                    Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to receiver.
-                </p>
-            </section>
+                    </div>
+                </section>
 
-            <!-- ── Bottom: Transcript &amp; Agent panels ──────────────────────── -->
+                <section class="card" id="card-ai">
+                    <h2 class="card-title">AI Pipeline (Manual)</h2>
+
+                    <div class="status-list">
+                        <div class="status-row">
+                            <span class="status-label">AI Status</span>
+                            <span class="status-value" id="ai-status">Idle</span>
+                        </div>
+                    </div>
+
+                    <div class="controls-group">
+                        <button id="btn-start-ai" class="btn btn-ai" disabled>Start Capture</button>
+                        <button id="btn-stop-ai" class="btn btn-ai-stop" disabled>Stop &amp; Process</button>
+                        <button id="btn-test-tts" class="btn btn-secondary" disabled>Test TTS → WebRTC</button>
+                    </div>
+
+                    <p class="hint">
+                        Manual override: Start Capture records remote audio → STT → AI Interface → TTS → WebRTC back to
+                        receiver.
+                    </p>
+                </section>
+            </div>
+
             <section class="card card-wide" id="card-transcript">
                 <h2 class="card-title">Transcript &amp; Agent Response</h2>
 
@@ -622,311 +121,16 @@
             </section>
 
         </main>
-
-        <!-- ── Footer ─────────────────────────────────────────────────────── -->
         <footer class="app-footer">
             <span>Person 1 Infrastructure — WebRTC · STT · TTS · AI Interface</span>
             <span>Person 2 integrates LLM in <code>server/interfaces/ai-interface.js</code></span>
         </footer>
 
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
     </div>
-  </div>
-
-<<<<<<< HEAD
-  <script>
-    let activeSessionId = null;
-    let scrapedData = null;
-    let recognition = null;
-    let isListening = false;
-
-    // Initialize Web Speech API for Browser Microphone STT
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log('[STT Recognized]:', transcript);
-        document.getElementById('turnInput').value = transcript;
-        sendTurn();
-      };
-
-      recognition.onerror = (event) => {
-        console.warn('[STT Error]:', event.error);
-        stopMic();
-      };
-
-      recognition.onend = () => {
-        stopMic();
-      };
-    }
-
-    function toggleMic() {
-      if (!recognition) {
-        alert('Browser Speech Recognition not supported on this browser. You can type answers in the input box.');
-        return;
-      }
-      if (isListening) {
-        stopMic();
-      } else {
-        startMic();
-      }
-    }
-
-    function startMic() {
-      if (recognition && !isListening) {
-        try {
-          recognition.start();
-          isListening = true;
-          const btnMic = document.getElementById('btnMic');
-          btnMic.style.background = 'rgba(244, 63, 94, 0.3)';
-          btnMic.innerHTML = '<span>🔴 Listening...</span>';
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-
-    function stopMic() {
-      if (recognition && isListening) {
-        try { recognition.stop(); } catch(e){}
-        isListening = false;
-        const btnMic = document.getElementById('btnMic');
-        btnMic.style.background = 'rgba(255, 255, 255, 0.08)';
-        btnMic.innerHTML = '<span>🎤 Mic</span>';
-      }
-    }
-
-    // 1. Trigger Scraper
-    async function startScraping() {
-      const url = document.getElementById('scrapeUrl').value.trim();
-      const prompt = document.getElementById('scrapePrompt').value.trim();
-      const btnScrape = document.getElementById('btnScrape');
-
-      if (!url) {
-        alert('Please enter a website URL.');
-        return;
-      }
-
-      btnScrape.disabled = true;
-      btnScrape.innerHTML = '<div class="spinner"></div> <span>Executing testscraper.py...</span>';
-
-      try {
-        const response = await fetch('/api/scrape', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, prompt })
-        });
-
-        const res = await response.json();
-        if (res.success && res.data) {
-          scrapedData = res.data;
-          
-          // Display the scraped phone number prominently!
-          document.getElementById('phoneDisplayCard').style.display = 'block';
-          document.getElementById('scrapedPhoneNumber').innerText = scrapedData.phone_number || scrapedData.email_or_phone || 'N/A';
-          document.getElementById('scrapedCompany').innerText = scrapedData.company_name || 'Target Company';
-          document.getElementById('scrapedRole').innerText = scrapedData.job_role || 'Open Position';
-          document.getElementById('scrapedRecruiter').innerText = scrapedData.recruiter_name || 'HR Office';
-          document.getElementById('scrapedEngine').innerText = scrapedData.scraper_engine || 'testscraper.py';
-
-          addMessage('agent', `Web scraping complete! Extracted Phone Number: ${scrapedData.phone_number || scrapedData.email_or_phone}`);
-        } else {
-          alert('Scraping error: ' + (res.error || 'Unknown error'));
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Failed to connect to backend server for scraping.');
-      } finally {
-        btnScrape.disabled = false;
-        btnScrape.innerHTML = '<span>🕷️ Scrape Web Page</span>';
-      }
-    }
-
-    function attachToVoiceAgent() {
-      if (!scrapedData) {
-        alert('Please scrape a web page first.');
-        return;
-      }
-      initCallSession();
-    }
-
-    // 2. Initialize Voice Session
-    async function initCallSession() {
-      const payload = scrapedData || {
-        company_name: 'Google Careers',
-        job_role: 'Software Engineer',
-        recruiter_name: 'HR Desk',
-        email_or_phone: '+1 (800) 555-0199',
-        phone_number: '+1 (800) 555-0199',
-        domain_or_website: 'google.com'
-      };
-
-      try {
-        const response = await fetch('/api/voice/init', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const res = await response.json();
-        if (res.success) {
-          activeSessionId = res.session_id;
-          document.getElementById('callStateBadge').innerText = 'Call Active';
-          document.getElementById('callStateBadge').style.background = 'rgba(16, 185, 129, 0.2)';
-          document.getElementById('callStateBadge').style.color = '#10b981';
-
-          // Enable controls
-          document.getElementById('btnMic').disabled = false;
-          document.getElementById('turnInput').disabled = false;
-          document.getElementById('btnSendTurn').disabled = false;
-          document.getElementById('btnEndCall').disabled = false;
-          document.getElementById('btnStartCall').disabled = true;
-
-          // Clear & add initial greeting
-          document.getElementById('transcriptBox').innerHTML = '';
-          addMessage('agent', res.initial_question);
-          
-          updateProgress(1);
-          speakText(res.initial_question);
-        } else {
-          alert('Session Init Error: ' + res.error);
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Failed to initialize voice call session.');
-      }
-    }
-
-    // 3. Send Dialogue Turn
-    async function sendTurn() {
-      const inputEl = document.getElementById('turnInput');
-      const text = inputEl.value.trim();
-      if (!text || !activeSessionId) return;
-
-      inputEl.value = '';
-      addMessage('caller', text);
-
-      try {
-        const response = await fetch('/api/voice/turn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_id: activeSessionId,
-            text: text,
-            timestamp: Date.now() / 1000
-          })
-        });
-
-        const res = await response.json();
-        if (res.success && res.response) {
-          const agentResp = res.response;
-          addMessage('agent', agentResp.text);
-          speakText(agentResp.text);
-
-          if (agentResp.conversation_complete) {
-            finalizeCallSession();
-          }
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    // 4. Finalize Session
-    async function finalizeCallSession() {
-      if (!activeSessionId) return;
-
-      try {
-        const response = await fetch('/api/voice/finalize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: activeSessionId })
-        });
-
-        const res = await response.json();
-        if (res.success && res.data) {
-          const report = res.data.report;
-          document.getElementById('reportCard').style.display = 'block';
-          
-          const scoreEl = document.getElementById('reportScore');
-          scoreEl.innerText = `${report.final_trust_score} / 100`;
-
-          const riskBadge = document.getElementById('reportRisk');
-          riskBadge.innerText = report.risk_level;
-          if (report.risk_level === 'HIGH' || report.risk_level === 'CRITICAL') {
-            riskBadge.style.background = 'rgba(244, 63, 94, 0.2)';
-            riskBadge.style.color = '#f43f5e';
-            scoreEl.className = 'score-badge risk-high';
-          } else {
-            riskBadge.style.background = 'rgba(16, 185, 129, 0.2)';
-            riskBadge.style.color = '#10b981';
-            scoreEl.className = 'score-badge';
-          }
-
-          document.getElementById('reportExplanation').innerText = report.mrav_explanation || 'Verification completed.';
-          
-          document.getElementById('callStateBadge').innerText = 'Call Complete';
-          document.getElementById('btnStartCall').disabled = false;
-          document.getElementById('btnEndCall').disabled = true;
-          document.getElementById('btnMic').disabled = true;
-          document.getElementById('turnInput').disabled = true;
-          document.getElementById('btnSendTurn').disabled = true;
-          
-          updateProgress(5, true);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    function addMessage(speaker, text) {
-      const box = document.getElementById('transcriptBox');
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${speaker}`;
-      
-      const speakerName = speaker === 'agent' ? 'AI Voice Agent' : 'Company HR / Receiver';
-      msgDiv.innerHTML = `<div class="message-speaker">${speakerName}</div><div>${text}</div>`;
-      
-      box.appendChild(msgDiv);
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function speakText(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
-      }
-    }
-
-    function updateProgress(step, allDone = false) {
-      for (let i = 1; i <= 5; i++) {
-        const el = document.getElementById(`obj${i}`);
-        if (allDone || i < step) {
-          el.className = 'obj-step completed';
-        } else if (i === step) {
-          el.className = 'obj-step active';
-        } else {
-          el.className = 'obj-step';
-        }
-      }
-    }
-  </script>
-=======
-    <!-- Hidden remote audio element -->
     <audio id="remoteAudio" autoplay></audio>
-
-    <!-- Load audio-manager before app.js -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="audio/audio-manager.js"></script>
     <script src="app.js"></script>
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
 </body>
 
 </html>

@@ -18,7 +18,8 @@ Credibility Tiers:
     C_idx ≥ 0.5         → Trusted
 
 Routing:
-    Always → PROCEED_TO_CONFIDENCE_FRAMEWORK (voice verification out of scope)
+    Defaults to PROCEED_TO_CONFIDENCE_FRAMEWORK here; full_pipeline_orchestrator
+    switches it to ROUTE_TO_VOICE_AGENT when the DST score is NOT_SUFFICIENT_INFORMATION
 """
 
 from typing import Optional
@@ -93,7 +94,7 @@ def _generate_flags(
             flags.append(CredibilityFlag(severity="INFO", message=f_flag))
 
     # Domain mismatch
-    if not consensus_breakdown.domain_match and entities.domain_or_website and doc.metadata.domain:
+    if _has_domain_mismatch(entities, doc, consensus_breakdown):
         flags.append(
             CredibilityFlag(
                 severity="CRITICAL",
@@ -164,6 +165,15 @@ def _generate_flags(
     return flags
 
 
+def _has_domain_mismatch(entities: JobOfferEntities, doc: VectorDocument, consensus_breakdown) -> bool:
+    """True when both the offer and the record state a domain and they differ."""
+    return bool(
+        not consensus_breakdown.domain_match
+        and entities.domain_or_website
+        and doc.metadata.domain
+    )
+
+
 def _evaluate_single_document(
     entities: JobOfferEntities,
     doc: VectorDocument,
@@ -213,6 +223,7 @@ def _evaluate_single_document(
         credibility_tier=tier,
         consensus_breakdown=consensus_breakdown,
         mrav_triple=mrav_triple,
+        domain_mismatch=_has_domain_mismatch(entities, doc, consensus_breakdown),
     )
 
     return evaluated, flags

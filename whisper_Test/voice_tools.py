@@ -3,9 +3,11 @@ Voice Tools — Shared components for voice-based assistants.
 ============================================================
 
 Provides reusable building blocks:
-  - EdgeTTSSpeaker : Text-to-Speech via Edge-TTS  (speak)
-  - OllamaChat     : LLM conversation via Ollama  (think)
-  - WhisperListener: Speech-to-Text via WhisperLive (listen)
+  - EdgeTTSSpeaker       : Text-to-Speech via Edge-TTS — plays through speaker (speak)
+  - EdgeTTSFile          : Text-to-Speech via Edge-TTS — returns audio bytes (for WebRTC bridge)
+  - OllamaChat           : LLM conversation via Ollama  (think)
+  - WhisperListener      : Speech-to-Text via WhisperLive — live mic (listen)
+  - WhisperFileTranscriber: Speech-to-Text via WhisperLive — from audio file (for WebRTC bridge)
 """
 
 import asyncio
@@ -120,8 +122,67 @@ class EdgeTTSSpeaker:
 
 
 # ──────────────────────────────────────────────
-# OllamaChat — LLM conversation via Ollama
+# EdgeTTSFile — Text-to-Speech to bytes/file
 # ──────────────────────────────────────────────
+
+class EdgeTTSFile:
+    """Generate Edge-TTS audio to an in-memory buffer (no speaker playback).
+
+    Unlike EdgeTTSSpeaker which plays through PyAudio, this class returns
+    raw MP3 bytes for sending over HTTP (used by the WebRTC call bridge).
+
+    Usage:
+        tts = EdgeTTSFile()
+        mp3_bytes = tts.synthesize("Hello, how are you?")
+        # mp3_bytes is a bytes object containing the MP3 audio
+    """
+
+    def __init__(self, voice: str = TTS_VOICE):
+        self.voice = voice
+        # Dedicated event loop for async edge-tts calls
+        self._loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self._loop.run_forever, daemon=True)
+        self._thread.start()
+
+    def synthesize(self, text: str) -> bytes:
+        """Generate TTS audio and return MP3 bytes. Blocks until complete."""
+        if not text.strip():
+            return b""
+        future = asyncio.run_coroutine_threadsafe(self._synthesize_async(text), self._loop)
+        return future.result()
+
+    async def _synthesize_async(self, text: str) -> bytes:
+        """Fetch TTS audio and return as MP3 bytes (no playback)."""
+        communicate = edge_tts.Communicate(text, self.voice)
+
+        audio_bytes = io.BytesIO()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_bytes.write(chunk["data"])
+
+        return audio_bytes.getvalue()
+
+    def synthesize_to_wav(self, text: str, sample_rate: int = 24000) -> bytes:
+        """Generate TTS audio and return WAV bytes (PCM 16-bit mono).
+
+        Useful when the consumer expects WAV format instead of MP3.
+        """
+        mp3_bytes = self.synthesize(text)
+        if not mp3_bytes:
+            return b""
+
+        # Decode MP3 → raw PCM using pydub
+        audio_segment = AudioSegment.from_mp3(io.BytesIO(mp3_bytes))
+        audio_segment = audio_segment.set_channels(1).set_frame_rate(sample_rate).set_sample_width(2)
+
+        # Export as WAV to bytes
+        wav_buffer = io.BytesIO()
+        audio_segment.export(wav_buffer, format="wav")
+        return wav_buffer.getvalue()
+
+    def shutdown(self):
+        """Stop the background event loop."""
+        self._loop.call_soon_threadsafe(self._loop.stop)
 
 class OllamaChat:
     """Manages a multi-turn conversation with an Ollama model.
@@ -148,15 +209,25 @@ class OllamaChat:
         full_response = []
         try:
             import ollama
-            stream = ollama.chat(
-                model=self.model,
-                messages=self.messages,
-                stream=True,
-            )
-            for chunk in stream:
-                token = chunk["message"]["content"]
-                full_response.append(token)
-                yield token
+            try:
+                stream = ollama.chat(
+                    model=self.model,
+                    messages=self.messages,
+                    stream=True,
+                )
+                for chunk in stream:
+                    token = chunk["message"]["content"]
+                    full_response.append(token)
+                    yield token
+            except Exception as e:
+                print(f"  [LLM MOCK] Error from Ollama: {e}. Yielding mock response.")
+                mock_text = "This is a mocked response because the Ollama model is unavailable. Are you available for a phone screen?"
+                # Simulate streaming
+                for word in mock_text.split():
+                    token = word + " "
+                    full_response.append(token)
+                    time.sleep(0.1)
+                    yield token
         finally:
             self.messages.append({"role": "assistant", "content": "".join(full_response)})
 
@@ -403,4 +474,119 @@ class WhisperListener:
         if result:
             print()  # newline after the live transcript
         return result
+
+
+# ──────────────────────────────────────────────
+# WhisperFileTranscriber — STT from audio files
+# ──────────────────────────────────────────────
+
+class WhisperFileTranscriber:
+    """Transcribe audio files by streaming bytes to the WhisperLive server.
+
+    Instead of live mic input, reads an audio file (or bytes), converts it
+    to 16kHz mono PCM, and streams the chunks to WhisperLive as if they
+    were coming from a microphone.
+
+    Usage:
+        transcriber = WhisperFileTranscriber()
+        text = transcriber.transcribe_file("recording.webm")
+        # or
+        text = transcriber.transcribe_bytes(audio_bytes, format="webm")
+    """
+
+    def __init__(
+        self,
+        host: str = WHISPER_HOST,
+        port: int = WHISPER_PORT,
+        model: str = WHISPER_MODEL,
+        lang: str = WHISPER_LANG,
+    ):
+        self.host = host
+        self.port = port
+        self.model = model
+        self.lang = lang
+
+    def transcribe_bytes(self, audio_bytes: bytes, format: str = "webm") -> str:
+        """Transcribe audio from raw bytes.
+
+        Args:
+            audio_bytes: Raw audio file bytes (any format pydub supports).
+            format: Audio format hint for pydub (e.g. 'webm', 'mp3', 'wav').
+
+        Returns:
+            Transcript string. Empty string if no speech detected.
+        """
+        if not audio_bytes:
+            return ""
+
+        print(f"  [FILE-STT] Transcribing {len(audio_bytes)} bytes ({format})...")
+
+        # Convert to 16kHz mono PCM (the format WhisperLive expects)
+        try:
+            audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format=format)
+            audio_segment = audio_segment.set_channels(1).set_frame_rate(16000).set_sample_width(2)
+            pcm_data = audio_segment.raw_data
+        except Exception as e:
+            print(f"  [FILE-STT] Audio conversion failed: {e}")
+            return ""
+
+        import tempfile
+        import os
+        
+        # We need a temporary file for the TranscriptionClient to read from
+        temp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        temp_wav_path = temp_wav.name
+        temp_wav.close()
+
+        try:
+            # Export the 16kHz mono audio directly to a wav file
+            audio_segment.export(temp_wav_path, format="wav")
+            
+            # Create a TranscriptionClient
+            client = TranscriptionClient(
+                host=self.host,
+                port=self.port,
+                lang=self.lang,
+                model=self.model,
+                use_vad=True,
+                log_transcription=False,
+                mute_audio_playback=True,
+            )
+            
+            # TranscriptionClient(audio="...") will automatically stream the file
+            # to WhisperLive, wait for completion, and return the joined transcript!
+            transcript = client(audio=temp_wav_path)
+            
+            # Fallback if the return value is empty but it has internal state
+            if not transcript and hasattr(client, 'client') and hasattr(client.client, 'transcript'):
+                transcript = " ".join(segment["text"].strip() for segment in client.client.transcript)
+                
+            print(f"  [FILE-STT] Transcript: \"{transcript[:80]}{'...' if len(transcript) > 80 else ''}\"")
+            return transcript.strip() if transcript else ""
+            
+        finally:
+            if os.path.exists(temp_wav_path):
+                os.remove(temp_wav_path)
+            # TranscriptionClient's internal utils.resample creates a file in the CWD
+            import glob
+            temp_stem = os.path.splitext(os.path.basename(temp_wav_path))[0]
+            for f in glob.glob(f"{temp_stem}_resampled.wav"):
+                try:
+                    os.remove(f)
+                except:
+                    pass
+
+    def transcribe_file(self, file_path: str) -> str:
+        """Transcribe an audio file from disk.
+
+        Args:
+            file_path: Path to the audio file.
+
+        Returns:
+            Transcript string.
+        """
+        import os
+        ext = os.path.splitext(file_path)[1].lstrip(".")
+        with open(file_path, "rb") as f:
+            return self.transcribe_bytes(f.read(), format=ext or "webm")
 

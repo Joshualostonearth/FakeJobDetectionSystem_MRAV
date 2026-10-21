@@ -1,13 +1,6 @@
 import tldextract
-from obj2dst import DSTEngine, run_objective_2_dst
-from key_pool import key_pool
-
-try:
-    from langchain_core.prompts import ChatPromptTemplate
-    from langchain_ollama import ChatOllama
-    HAS_LANGCHAIN_OLLAMA = True
-except ImportError:
-    HAS_LANGCHAIN_OLLAMA = False
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_ollama import ChatOllama
 
 # --- 1. RULE-BASED CHECKERS (Fast, Deterministic) ---
 
@@ -35,86 +28,92 @@ def check_free_email(email: str) -> bool:
     return domain in free_hosts
 
 
-# --- 2. M-RAV CONSISTENCY EVALUATOR ---
+# --- 2. M-RAV CONSISTENCY EVALUATOR (Ollama Llama 3.2) ---
 
 def evaluate_mrav_consistency(entities: dict, retrieved_evidence: list) -> dict:
     """
-    Evaluates semantic consistency between extracted job claims and FAISS evidence documents.
+    Uses local Ollama (Llama 3.2) to evaluate semantic consistency 
+    between extracted job claims and FAISS evidence documents.
     """
+    llm = ChatOllama(model="llama3.2", temperature=0)
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a Credibility Filtration Agent for a job scam detection system.
+Compare the user's JOB CLAIM against the RETRIEVED EVIDENCE from our database.
+
+CRITICAL JUDGMENT RULES:
+1. SEMANTIC TITLE EQUIVALENCE: Treat minor job title variations as CONSISTENT (e.g., 'Senior Software Engineer (Backend)' IS EQUIVALENT to 'Software Engineer Backend').
+2. DOMAIN & LOCATION MISMATCH: Flag as SUSPICIOUS or FRAUDULENT if:
+   - The company name is missing or blank.
+   - The location listed (e.g., California) conflicts with the known location/entity of the domain (e.g., richmond.edu belongs to University of Richmond in Virginia, NOT Richmond, CA).
+3. VERDICT DEFINITIONS:
+   - LEGITIMATE: Company, role, location, and domain align cleanly with evidence.
+   - SUSPICIOUS: Major structural mismatch, geographic/domain conflict, or missing company context.
+   - FRAUDULENT: Outright scam patterns, check/wire transfer requests, or verified malicious database matches.
+
+Output ONLY a 2-line summary in this exact format:
+VERDICT: [LEGITIMATE / SUSPICIOUS / FRAUDULENT]
+REASON: [1 concise sentence explaining your reasoning]"""),
+        ("human", """JOB CLAIM:
+Company: {company}
+Role: {role}
+Domain: {domain}
+Location: {location}
+
+RETRIEVED FAISS EVIDENCE:
+{evidence}""")
+    ])
+
+    # Convert retrieved FAISS docs into readable text
     evidence_text = ""
     for idx, doc in enumerate(retrieved_evidence, 1):
         is_scam = "YES (Scam)" if doc.get("metadata", {}).get("fraudulent") == 1 else "NO (Legitimate)"
         evidence_text += f"\n--- Evidence #{idx} (Known Scam: {is_scam}) ---\n{doc.get('page_content', '')[:300]}\n"
 
-    prompt_str = f"""You are a Credibility Filtration Agent for a job scam detection system.
-Compare the user's JOB CLAIM against the RETRIEVED EVIDENCE from our database.
-
-JOB CLAIM:
-Company: {entities.get("company_name", "")}
-Role: {entities.get("job_role", "")}
-Domain: {entities.get("domain_or_website", "")}
-
-RETRIEVED FAISS EVIDENCE:
-{evidence_text}
-
-Determine if the offer is CONSISTENT, SUSPICIOUS, or FRAUDULENT.
-Output ONLY a 2-line summary in this format:
-VERDICT: [LEGITIMATE / SUSPICIOUS / FRAUDULENT]
-REASON: [1 concise sentence explaining your reasoning]"""
-
-    if HAS_LANGCHAIN_OLLAMA:
-        try:
-            llm = ChatOllama(model="llama3.2", temperature=0)
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", "You are a Credibility Filtration Agent."),
-                ("human", prompt_str)
-            ])
-            chain = prompt | llm
-            response = chain.invoke({})
-            return {"mrav_analysis": response.content.strip()}
-        except Exception as e:
-            print(f"[Warning] ChatOllama failed ({e}), falling back to key_pool.")
-
-    def api_call(client):
-        try:
-            response = client.chat.completions.create(
-                model=key_pool.model,
-                messages=[{"role": "user", "content": prompt_str}],
-                temperature=0.0,
-                max_tokens=256,
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            return f"VERDICT: SUSPICIOUS\nREASON: Evidence verification performed via DST engine fallback ({e})."
-
-    analysis = key_pool.execute(api_call) if hasattr(key_pool, "execute") else "VERDICT: SUSPICIOUS\nREASON: DST analysis completed."
-    return {"mrav_analysis": analysis}
+    chain = prompt | llm
+    try:
+        response = chain.invoke({
+            "company": entities.get("company_name", ""),
+            "role": entities.get("job_role", ""),
+            "domain": entities.get("domain_or_website", ""),
+            "location": entities.get("location", ""),
+            "evidence": evidence_text
+        })
+        return {"mrav_analysis": response.content.strip()}
+    except Exception as e:
+        return {"mrav_analysis": f"M-RAV evaluation error: {e}"}
 
 
-# --- 3. SYNTHESIZED CREDIBILITY CALCULATOR (USING DST) ---
+# --- 3. SYNTHESIZED CREDIBILITY CALCULATOR ---
 
-def Run_Objective_2_Filter(
-    entities: dict,
-    retrieved_evidence: list,
-    voice_signals: dict = None
-) -> dict:
-    """
-    Runs Objective 2 filtration layer using Dempster-Shafer Theory (obj2dst.py).
-    Optionally integrates Person 2 Voice Agent signals.
-    """
-    # Execute Dempster-Shafer Theory evidence combination
-    dst_result = run_objective_2_dst(entities, retrieved_evidence, voice_signals)
-    
-    # Run M-RAV LLM consistency check
-    mrav_res = evaluate_mrav_consistency(entities, retrieved_evidence)
-    
-    # Combine M-RAV explanation into DST output
-    full_explanation = f"{mrav_res['mrav_analysis']}\n\n[DST Evidence Fusion]\n{dst_result['mrav_explanation']}\n{dst_result['dst_summary']}"
-    
+def Run_Objective_2_Filter(entities: dict, retrieved_evidence: list) -> dict:
+    flags = []
+    trust_score = 100.0  # Start at 100%
+
+    # Check 0: Missing Company Entity Check
+    if not entities.get("company_name", "").strip():
+        flags.append("WARNING: Company/Organization name could not be reliably extracted from document")
+        trust_score -= 15.0
+
+    # Check 1: Free Email Provider
+    if check_free_email(entities.get("recruiter_email", "")):
+        flags.append("WARNING: Recruiter using free public email address (e.g. @gmail.com)")
+        trust_score -= 25.0
+
+    # Check 2: Top Match Known Scam Check
+    if retrieved_evidence and retrieved_evidence[0].get("metadata", {}).get("fraudulent") == 1:
+        flags.append("CRITICAL: Top similarity match in FAISS database is a known fraudulent listing")
+        trust_score -= 50.0
+
+    # Check 3: M-RAV Ollama Consistency Analysis
+    mrav_result = evaluate_mrav_consistency(entities, retrieved_evidence)
+
+    final_score = max(0.0, trust_score)
+    risk_level = "HIGH RISK" if final_score < 50 else ("MEDIUM RISK" if final_score < 75 else "LOW RISK")
+
     return {
-        "final_trust_score": dst_result["final_trust_score"],
-        "risk_level": dst_result["risk_level"],
-        "flags_raised": dst_result["flags_raised"],
-        "mrav_explanation": full_explanation,
-        "combined_mass": dst_result.get("combined_mass", {})
-    }
+        "final_trust_score": final_score,
+        "risk_level": risk_level,
+        "flags_raised": flags,
+        "mrav_explanation": mrav_result["mrav_analysis"]
+    }

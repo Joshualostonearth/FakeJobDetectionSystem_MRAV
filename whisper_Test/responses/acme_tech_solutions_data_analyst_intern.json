@@ -2,33 +2,22 @@
   "meta": {
     "company": "Acme Tech Solutions",
     "job": "Data Analyst Intern",
-    "caller_type": "automated AI assistant",
-<<<<<<< HEAD
-    "created_at": "2026-09-21T13:21:17.355034+00:00",
-    "completed_at": "2026-09-21T13:24:36.123950+00:00"
-=======
-    "created_at": "2026-09-21T14:33:11.917674+00:00",
-    "completed_at": "2026-09-21T14:35:59.054850+00:00"
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
+    "caller_type": "automated AI assistant (WebRTC)",
+    "created_at": "2026-09-23T16:48:09.422352+00:00",
+    "completed_at": "2026-09-23T16:51:43.717800+00:00"
   },
   "responses": [
     {
       "id": 1,
-<<<<<<< HEAD
       "question": "Hello, this is an automated AI assistant calling on behalf of a candidate. Am I speaking with someone at Acme Tech Solutions?",
       "purpose": "Disclose AI identity and confirm company",
-=======
-      "question": "Hello, I’m an automated assistant calling on behalf of a candidate who received a job offer—could you confirm this is Acme Tech Solutions?",
-      "purpose": "verify company identity and call legitimacy",
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
       "targets_reason_ids": [
         "R1"
       ],
-<<<<<<< HEAD
       "legit_answer_hint": "Yes, confirms the company name and greets back",
       "answer": null,
       "status": "no_answer",
-      "asked_at": "2026-09-21T13:21:28.079355+00:00",
+      "asked_at": "2026-09-23T16:48:09.433841+00:00",
       "answered_at": null
     },
     {
@@ -41,7 +30,7 @@
       "legit_answer_hint": "Provides a working company website URL",
       "answer": null,
       "status": "no_answer",
-      "asked_at": "2026-09-21T13:22:14.956794+00:00",
+      "asked_at": "2026-09-23T16:48:49.539259+00:00",
       "answered_at": null
     },
     {
@@ -52,10 +41,10 @@
         "R1"
       ],
       "legit_answer_hint": "Gives a specific verifiable office address",
-      "answer": null,
-      "status": "no_answer",
-      "asked_at": "2026-09-21T13:22:59.260130+00:00",
-      "answered_at": null
+      "answer": "tag.zmail.com",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:49:08.210153+00:00",
+      "answered_at": "2026-09-23T16:49:08.210195+00:00"
     },
     {
       "id": 4,
@@ -65,10 +54,10 @@
         "R2"
       ],
       "legit_answer_hint": "Confirms the role and describes it briefly",
-      "answer": null,
-      "status": "no_answer",
-      "asked_at": "2026-09-21T13:23:37.757751+00:00",
-      "answered_at": null
+      "answer": "in Hyderabad.",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:49:22.666400+00:00",
+      "answered_at": "2026-09-23T16:49:22.666458+00:00"
     },
     {
       "id": 5,
@@ -78,10 +67,10 @@
         "R2"
       ],
       "legit_answer_hint": "Describes interview rounds and evaluation steps",
-      "answer": null,
-      "status": "pending",
-      "asked_at": "2026-09-21T13:24:19.417127+00:00",
-      "answered_at": null
+      "answer": "confirm this as it is.",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:49:40.190125+00:00",
+      "answered_at": "2026-09-23T16:49:40.190172+00:00"
     },
     {
       "id": 6,
@@ -91,10 +80,10 @@
         "R3"
       ],
       "legit_answer_hint": "Confirms salary range consistent with the offer",
-      "answer": null,
-      "status": "pending",
-      "asked_at": null,
-      "answered_at": null
+      "answer": "there will be a tech interview as well as HR interview.",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:50:04.709171+00:00",
+      "answered_at": "2026-09-23T16:50:04.709230+00:00"
     },
     {
       "id": 7,
@@ -104,10 +93,10 @@
         "R3"
       ],
       "legit_answer_hint": "Says no fees are required from candidates",
-      "answer": null,
-      "status": "pending",
-      "asked_at": null,
-      "answered_at": null
+      "answer": "Thank you very much. the compensation is 10,000 rupees.",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:50:15.751137+00:00",
+      "answered_at": "2026-09-23T16:50:15.751170+00:00"
     },
     {
       "id": 8,
@@ -119,8 +108,8 @@
       ],
       "legit_answer_hint": "Lists standard documents like ID and tax forms",
       "answer": null,
-      "status": "pending",
-      "asked_at": null,
+      "status": "no_answer",
+      "asked_at": "2026-09-23T16:50:32.195845+00:00",
       "answered_at": null
     },
     {
@@ -131,10 +120,10 @@
         "R4"
       ],
       "legit_answer_hint": "Provides a corporate domain email address",
-      "answer": null,
-      "status": "pending",
-      "asked_at": null,
-      "answered_at": null
+      "answer": "the one I mentioned before.",
+      "status": "answered",
+      "asked_at": "2026-09-23T16:51:06.237579+00:00",
+      "answered_at": "2026-09-23T16:51:06.237621+00:00"
     },
     {
       "id": 10,
@@ -144,128 +133,10 @@
         "R4"
       ],
       "legit_answer_hint": "Provides official phone or email for follow-up",
-      "answer": null,
-      "status": "pending",
-      "asked_at": null,
-      "answered_at": null
-=======
-      "legit_answer_hint": "Yes, this is the correct company",
-      "answer": "any solution? Yes, this is our integral solution",
+      "answer": "Hello? Okay, that's it.",
       "status": "answered",
-      "asked_at": "2026-09-21T14:33:22.081670+00:00",
-      "answered_at": "2026-09-21T14:33:41.574861+00:00"
-    },
-    {
-      "id": 2,
-      "question": "Could you please share Acme Tech Solutions’ official website address?",
-      "purpose": "confirm company’s online presence",
-      "targets_reason_ids": [
-        "R1"
-      ],
-      "legit_answer_hint": "Provide a verified URL",
-      "answer": "Please share, app me tech solutions official website address and at www.missouricious.com",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:33:41.575283+00:00",
-      "answered_at": "2026-09-21T14:33:54.823145+00:00"
-    },
-    {
-      "id": 3,
-      "question": "Where is Acme Tech Solutions’ main office located?",
-      "purpose": "verify company’s physical registration",
-      "targets_reason_ids": [
-        "R1"
-      ],
-      "legit_answer_hint": "Give address details",
-      "answer": "Where is AT&T's official state office located? Bangalore, India",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:33:54.823676+00:00",
-      "answered_at": "2026-09-21T14:34:08.197534+00:00"
-    },
-    {
-      "id": 4,
-      "question": "What was the exact job title offered to the candidate?",
-      "purpose": "confirm role clarity and legitimacy",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "Data Analyst Intern",
-      "answer": "That is an analysis in there.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:34:08.198203+00:00",
-      "answered_at": "2026-09-21T14:34:26.005432+00:00"
-    },
-    {
-      "id": 5,
-      "question": "Could you describe a few key responsibilities for this position?",
-      "purpose": "validate offer details and role authenticity",
-      "targets_reason_ids": [
-        "R2"
-      ],
-      "legit_answer_hint": "List typical intern duties",
-      "answer": "Basically, hello.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:34:26.005921+00:00",
-      "answered_at": "2026-09-21T14:35:03.486375+00:00"
-    },
-    {
-      "id": 6,
-      "question": "When was the candidate expected to start this role?",
-      "purpose": "check for unrealistic timelines",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "2026-10-01",
-      "answer": "next month",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:03.489563+00:00",
-      "answered_at": "2026-09-21T14:35:14.285560+00:00"
-    },
-    {
-      "id": 7,
-      "question": "Did the candidate have an interview before receiving this offer?",
-      "purpose": "confirm selection process legitimacy",
-      "targets_reason_ids": [
-        "R2"
-      ],
-      "legit_answer_hint": "Yes, they interviewed",
-      "answer": "No.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:14.286909+00:00",
-      "answered_at": "2026-09-21T14:35:23.206742+00:00"
-    },
-    {
-      "id": 8,
-      "question": "Was there any fee or payment requested to secure this position?",
-      "purpose": "detect upfront financial demands",
-      "targets_reason_ids": [
-        "R3"
-      ],
-      "legit_answer_hint": "No fees were asked",
-      "answer": "Yes.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:23.207271+00:00",
-      "answered_at": "2026-09-21T14:35:32.204845+00:00"
-    },
-    {
-      "id": 9,
-      "question": "How did the candidate receive their official offer—email or another method?",
-      "purpose": "verify communication channel legitimacy",
-      "targets_reason_ids": [
-        "R4"
-      ],
-      "legit_answer_hint": "Official email (hr@acme-tech-careers.com)",
-      "answer": "through LinkedIn.",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:32.205327+00:00",
-      "answered_at": "2026-09-21T14:35:41.078857+00:00"
-    },
-    {
-      "id": 10,
-      "question": "Could you provide the best contact method for next steps or official documents?",
-      "purpose": "ensure proper follow-up channel",
-      "targets_reason_ids": [],
-      "legit_answer_hint": "Official email address",
-      "answer": "at gmail.com",
-      "status": "answered",
-      "asked_at": "2026-09-21T14:35:41.079404+00:00",
-      "answered_at": "2026-09-21T14:35:52.928352+00:00"
->>>>>>> eacde25df052357f220a1f2821fed36a3d589623
+      "asked_at": "2026-09-23T16:51:43.716685+00:00",
+      "answered_at": "2026-09-23T16:51:43.716728+00:00"
     }
   ]
 }

@@ -1,552 +1,261 @@
 """
-DST (Dempster-Shafer Theory) Engine for combining evidence
-Dempster's Rule for merging belief masses from multiple sources
+DST (Dempster-Shafer Theory) Engine for combining evidence.
+Dempster's Rule for merging belief masses from multiple sources:
+Registry, LinkedIn, Scam Reports, and Voice Call Mass.
+
+Focal elements supported: {REAL}, {FAKE}, {UNCERTAIN}.
+Exposes top-level combine_two() and combine_all() functions and conflict factor K.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 class DSTEngine:
     """
     Dempster-Shafer Theory implementation for combining evidence.
-    Handles mass function assignment over {REAL, FAKE, UNCERTAIN} and
-    Dempster's Rule combination to measure belief and conflict across multiple sources.
+    Handles 3-focal-element mass functions m({REAL}), m({FAKE}), m({UNCERTAIN})
+    and calculates combined belief with conflict tracking (K).
     """
 
     def __init__(self):
-        self.epsilon = 1e-10  # Prevent division by zero
+        self.epsilon = 1e-10
 
     def assign_mass_function(
         self,
         similarity_score: float,
         source_type: str,
         is_fraudulent: int,
-        metadata_quality: float = 0.7
+        metadata_quality: float = 0.7,
+        domain_mismatch: bool = False,
     ) -> Dict[str, float]:
         """
-        Assign mass function m({REAL}), m({FAKE}), m({UNCERTAIN}) based on evidence.
+        Assign a 3-focal mass function m({REAL}), m({FAKE}), m({UNCERTAIN}) based on evidence.
 
         Args:
-            similarity_score: Cosine/distance similarity (0-1, higher = more similar)
-            source_type: Type of source (scam_db, linkedin, registry, etc.)
-            is_fraudulent: Label from database (0 = legitimate, 1 = scam)
-            metadata_quality: How complete/trustworthy is the metadata (0-1)
+            similarity_score: Similarity / relevance score (0-1)
+            source_type: Type of source (scam_db, linkedin, registry, voice_call, etc.)
+            is_fraudulent: Label from record (0 = legitimate, 1 = scam)
+            metadata_quality: Source completeness / trustworthiness (0-1)
+            domain_mismatch: True when the offer's domain differs from this record's domain.
+                A trusted record about the company then counts against the offer (FAKE).
 
         Returns:
-            Dictionary with m({REAL}), m({FAKE}), and m({UNCERTAIN}) masses
+            Dict with REAL, FAKE, UNCERTAIN masses and metadata.
         """
+        similarity_confidence = min(max(float(similarity_score), 0.0), 1.0)
 
-        # Base belief from similarity score
-        similarity_confidence = max(0.0, min(similarity_score, 1.0))
-
-        # Source credibility weighting
         source_credibility = {
-            "scam_db": 0.85,         # High trust - verified scam reports
-            "scam_report": 0.85,     # High trust - scam report database
-            "scam_report_forum": 0.70,
-            "linkedin": 0.85,        # High trust - official company data
-            "registry": 0.90,        # Very high - government verified
-            "legitimate_job_record": 0.85,
-            "user_reports": 0.60,     # Medium - user-submitted
-            "news_sources": 0.75,    # Medium-high
-            "voice_call": 0.95,      # HIGHEST - independent verification
-            "unknown": 0.50          # Low - unknown source
+            "registry": 0.95,
+            "voice_call": 0.95,
+            "linkedin": 0.85,
+            "scam_db": 0.85,
+            "scam_report": 0.85,
+            "news_sources": 0.75,
+            "user_reports": 0.60,
+            "unknown": 0.50,
         }
 
         credibility = source_credibility.get(source_type, 0.50)
+        evidence_strength = similarity_confidence * credibility * metadata_quality
+        evidence_strength = min(max(evidence_strength, 0.0), 0.95)
 
-        # Combine similarity + credibility + metadata quality
-        evidence_strength = min(
-            1.0,
-            similarity_confidence * credibility * metadata_quality
-        )
-
-        # Assign masses over {REAL, FAKE, UNCERTAIN}
-        if is_fraudulent == 1:
-            # Evidence points to FAKE/Scam
-            mass_fake = evidence_strength
+        if is_fraudulent == 1 or domain_mismatch:
+            mass_fake = round(evidence_strength, 6)
             mass_real = 0.0
-            mass_uncertain = 1.0 - mass_fake
+            mass_uncertain = round(1.0 - mass_fake, 6)
         else:
-            # Evidence points to REAL/Legitimate
-            mass_real = evidence_strength
+            mass_real = round(evidence_strength, 6)
             mass_fake = 0.0
-            mass_uncertain = 1.0 - mass_real
+            mass_uncertain = round(1.0 - mass_real, 6)
 
         return {
-            "REAL": round(mass_real, 4),
-            "FAKE": round(mass_fake, 4),
-            "UNCERTAIN": round(mass_uncertain, 4),
+            "REAL": mass_real,
+            "FAKE": mass_fake,
+            "UNCERTAIN": mass_uncertain,
             "source": source_type,
-            "strength": round(evidence_strength, 4)
+            "strength": round(evidence_strength, 4),
         }
 
-    def combine_two(self, m1: Dict, m2: Dict) -> Dict[str, float]:
+    def dempster_combine(self, m1: Dict[str, float], m2: Dict[str, float]) -> Dict[str, float]:
         """
-        Combine two mass functions using Dempster's Rule over
-        {REAL, FAKE, UNCERTAIN}.
+        Combine two 3-focal mass functions m1 and m2 using Dempster's Rule of Combination.
 
         Formula:
-            m12(A) = (1 / (1-K)) * sum[m1(B) * m2(C)]
-            where B intersection C = A
+            K (conflict) = m1(REAL)*m2(FAKE) + m1(FAKE)*m2(REAL)
+            1 - K = Normalisation factor
 
-        Conflict:
-            K = m1(REAL)*m2(FAKE) + m1(FAKE)*m2(REAL)
-
-        Args:
-            m1: First mass function
-            m2: Second mass function
-
-        Returns:
-            Combined mass function dictionary including conflict K
+            m12(REAL)      = [m1(REAL)*m2(REAL) + m1(REAL)*m2(UNCERTAIN) + m1(UNCERTAIN)*m2(REAL)] / (1 - K)
+            m12(FAKE)      = [m1(FAKE)*m2(FAKE) + m1(FAKE)*m2(UNCERTAIN) + m1(UNCERTAIN)*m2(FAKE)] / (1 - K)
+            m12(UNCERTAIN) = [m1(UNCERTAIN)*m2(UNCERTAIN)] / (1 - K)
         """
+        m1_real = m1.get("REAL", 0.0)
+        m1_fake = m1.get("FAKE", 0.0)
+        m1_unc = m1.get("UNCERTAIN", 1.0 - m1_real - m1_fake)
 
-        r1 = m1.get("REAL", 0.0)
-        f1 = m1.get("FAKE", 0.0)
-        u1 = m1.get(
-            "UNCERTAIN",
-            max(0.0, 1.0 - r1 - f1)
-        )
+        m2_real = m2.get("REAL", 0.0)
+        m2_fake = m2.get("FAKE", 0.0)
+        m2_unc = m2.get("UNCERTAIN", 1.0 - m2_real - m2_fake)
 
-        r2 = m2.get("REAL", 0.0)
-        f2 = m2.get("FAKE", 0.0)
-        u2 = m2.get(
-            "UNCERTAIN",
-            max(0.0, 1.0 - r2 - f2)
-        )
+        # Conflict factor K (empty set intersections)
+        conflict = (m1_real * m2_fake) + (m1_fake * m2_real)
+        norm = 1.0 - conflict
 
-        # Calculate intersections
-        match_real = (
-            (r1 * r2) +
-            (r1 * u2) +
-            (u1 * r2)
-        )
-
-        match_fake = (
-            (f1 * f2) +
-            (f1 * u2) +
-            (u1 * f2)
-        )
-
-        match_uncertain = u1 * u2
-
-        # Calculate conflict factor K
-        conflict = (r1 * f2) + (f1 * r2)
-
-        # Normalization factor (1 - K)
-        normalization = 1.0 - conflict
-
-        if normalization <= self.epsilon:
-            # Complete conflict - return neutral mass distribution
-            return {
-                "REAL": 0.3333,
-                "FAKE": 0.3333,
-                "UNCERTAIN": 0.3334,
-                "conflict": 1.0
-            }
-
-        # Apply Dempster's Rule: normalize by 1 - K
-        return {
-            "REAL": round(match_real / normalization, 4),
-            "FAKE": round(match_fake / normalization, 4),
-            "UNCERTAIN": round(match_uncertain / normalization, 4),
-            "conflict": round(conflict, 4)
-        }
-
-    def dempster_combine(
-        self,
-        m1: Dict,
-        m2: Dict
-    ) -> Dict[str, float]:
-        """
-        Backward-compatible alias for combine_two().
-
-        Existing code that calls dempster_combine() will continue
-        to work without modification.
-        """
-        return self.combine_two(m1, m2)
-
-    def combine_all(self, masses_list: List[Dict]) -> Dict[str, float]:
-        """
-        Combine multiple mass functions using Dempster's Rule.
-
-        The evidence is combined sequentially:
-            m1 + m2 -> result
-            result + m3 -> result
-            result + m4 -> result
-            ...
-
-        The conflict value K from every combination step is stored
-        in conflict_history.
-
-        Args:
-            masses_list: List of mass function dictionaries
-
-        Returns:
-            Combined final belief with conflict history.
-        """
-
-        # No evidence
-        if not masses_list:
+        if norm <= self.epsilon:
+            # Complete conflict — default to max uncertainty
             return {
                 "REAL": 0.0,
                 "FAKE": 0.0,
                 "UNCERTAIN": 1.0,
-                "conflict": 0.0,
-                "conflict_history": [],
-                "error": "No evidence provided"
+                "conflict": 1.0,
             }
 
-        # Only one evidence source
+        # Intersections that yield {REAL}
+        raw_real = (m1_real * m2_real) + (m1_real * m2_unc) + (m1_unc * m2_real)
+
+        # Intersections that yield {FAKE}
+        raw_fake = (m1_fake * m2_fake) + (m1_fake * m2_unc) + (m1_unc * m2_fake)
+
+        # Intersections that yield {UNCERTAIN}
+        raw_unc = m1_unc * m2_unc
+
+        combined_real = round(raw_real / norm, 6)
+        combined_fake = round(raw_fake / norm, 6)
+        combined_unc = round(raw_unc / norm, 6)
+
+        return {
+            "REAL": combined_real,
+            "FAKE": combined_fake,
+            "UNCERTAIN": combined_unc,
+            "conflict": round(conflict, 6),
+        }
+
+    def combine_all_evidence(self, masses_list: List[Dict[str, float]]) -> Dict[str, float]:
+        """Iteratively combine a list of mass functions using Dempster's Rule."""
+        if not masses_list:
+            return {"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0, "conflict": 0.0}
+
         if len(masses_list) == 1:
-            combined = dict(masses_list[0])
+            res = dict(masses_list[0])
+            if "UNCERTAIN" not in res:
+                res["UNCERTAIN"] = round(1.0 - res.get("REAL", 0.0) - res.get("FAKE", 0.0), 6)
+            if "conflict" not in res:
+                res["conflict"] = 0.0
+            return res
 
-            if "UNCERTAIN" not in combined:
-                r = combined.get("REAL", 0.0)
-                f = combined.get("FAKE", 0.0)
-                combined["UNCERTAIN"] = max(
-                    0.0,
-                    round(1.0 - r - f, 4)
-                )
-
-            combined["conflict"] = 0.0
-            combined["conflict_history"] = []
-
-            return combined
-
-        # Start with the first mass
         combined = dict(masses_list[0])
+        max_conflict = 0.0
 
-        if "UNCERTAIN" not in combined:
-            r = combined.get("REAL", 0.0)
-            f = combined.get("FAKE", 0.0)
-            combined["UNCERTAIN"] = max(
-                0.0,
-                round(1.0 - r - f, 4)
-            )
-
-        # Track conflict K at every combination step
-        conflict_history = []
-
-        # Iteratively combine with each subsequent mass
         for i in range(1, len(masses_list)):
-            combined = self.combine_two(
-                combined,
-                masses_list[i]
-            )
+            combined = self.dempster_combine(combined, masses_list[i])
+            if combined.get("conflict", 0.0) > max_conflict:
+                max_conflict = combined["conflict"]
 
-            conflict_history.append({
-                "step": i,
-                "conflict_K": combined["conflict"]
-            })
-
-        # Expose complete conflict history
-        combined["conflict_history"] = conflict_history
-
+        combined["conflict"] = round(max_conflict, 6)
         return combined
 
-    def combine_all_evidence(
-        self,
-        masses_list: List[Dict]
-    ) -> Dict[str, float]:
-        """
-        Backward-compatible alias for combine_all().
-
-        Existing code that calls combine_all_evidence() will continue
-        to work without modification.
-        """
-        return self.combine_all(masses_list)
-
     def get_belief_strength(self, mass_dict: Dict) -> str:
-        """
-        Get human-readable belief strength description.
-
-        Args:
-            mass_dict: Combined mass dictionary
-
-        Returns:
-            String describing belief strength
-        """
-
+        """Get human-readable belief strength description."""
         real_belief = mass_dict.get("REAL", 0.0)
         fake_belief = mass_dict.get("FAKE", 0.0)
-        conflict = mass_dict.get("conflict", 0.0)
 
-        if conflict > 0.45:
-            return "UNCERTAIN - High Conflict Between Evidence Sources"
-
-        if fake_belief >= 0.70:
-            return "VERY STRONG - Fake / Fraudulent"
-        elif fake_belief >= 0.45:
-            return "STRONG - Fake / Fraudulent"
-        elif fake_belief >= 0.25:
-            return "MODERATE - Suspicious"
-        elif real_belief >= 0.70:
-            return "VERY STRONG - Legitimate"
-        elif real_belief >= 0.45:
-            return "STRONG - Legitimate"
-        elif real_belief >= 0.25:
-            return "MODERATE - Legitimate"
+        if real_belief >= 0.80:
+            return "VERY STRONG - Real"
+        elif real_belief >= 0.60:
+            return "STRONG - Real"
+        elif fake_belief >= 0.80:
+            return "VERY STRONG - Fake"
+        elif fake_belief >= 0.60:
+            return "STRONG - Fake"
         else:
-            return "UNCERTAIN - Low Confidence Evidence"
+            return "UNCERTAIN - Mixed Evidence"
 
     def get_conflict_info(self, mass_dict: Dict) -> str:
-        """
-        Describe what the conflict factor means.
-        """
-
+        """Describe what the conflict factor means."""
         conflict = mass_dict.get("conflict", 0.0)
-
         if conflict > 0.5:
-            return "HIGH CONFLICT - Strong disagreement between evidence sources"
+            return "HIGH CONFLICT - Strong disagreement between sources"
         elif conflict > 0.2:
-            return "MODERATE CONFLICT - Partial disagreement between evidence sources"
+            return "MODERATE CONFLICT - Some disagreement"
         else:
-            return "LOW CONFLICT - Evidence sources largely agree"
+            return "LOW CONFLICT - Sources mostly agree"
 
 
-def run_objective_2_dst(
-    entities: Dict,
-    retrieved_evidence: List[Dict],
-    voice_signals: Dict = None
-) -> Dict:
+# ──────────────────────────────────────────────────────────
+# Person 3 Standard Standalone Deliverable Functions
+# ──────────────────────────────────────────────────────────
+
+_default_engine = DSTEngine()
+
+
+def combine_two(m1: Dict[str, float], m2: Dict[str, float]) -> Dict[str, float]:
+    """Combines two mass functions and exposes conflict value K."""
+    return _default_engine.dempster_combine(m1, m2)
+
+
+def combine_all(masses_list: List[Dict[str, float]]) -> Dict[str, float]:
+    """Combines a list of mass functions (registry, linkedin, scam-reports, voice)."""
+    return _default_engine.combine_all_evidence(masses_list)
+
+
+# ──────────────────────────────────────────────────────────
+# Objective 2 DST Sufficiency Score & Routing
+# ──────────────────────────────────────────────────────────
+
+# Committed belief below this means more mass sits on UNCERTAIN than on any verdict.
+# On test_dataset.csv this falls in the empty gap between the strongest
+# Ambiguous / Sparse offer (0.459) and the weakest clearly-real offer (0.520).
+SUFFICIENT_BELIEF_THRESHOLD = 0.50
+
+# Same K at which confidence_calibrator.calculate_confidence_score() starts
+# dampening the calibrated confidence toward 0.5.
+HIGH_CONFLICT_THRESHOLD = 0.40
+
+ROUTE_TO_VOICE_AGENT = "ROUTE_TO_VOICE_AGENT"
+PROCEED_TO_CONFIDENCE_FRAMEWORK = "PROCEED_TO_CONFIDENCE_FRAMEWORK"
+
+
+def score_dst_sufficiency(combined_mass: Dict[str, float]) -> Dict[str, object]:
     """
-    Top-level runner for Objective 2 using Dempster-Shafer Theory (DST).
+    Objective 2 DST score: decides whether the retrieved evidence alone is enough.
 
-    Args:
-        entities: Dict of extracted offer details
-        retrieved_evidence: List of FAISS document dictionaries
-        voice_signals: Optional VoiceVerificationSignals dict
+    dst_score = max(m(REAL), m(FAKE)) of the combined evidence masses.
 
     Returns:
-        Structured output dictionary with final trust score,
-        risk level, flags, and DST summary.
+        Dict with dst_score, dst_status ("SUFFICIENT_REAL", "SUFFICIENT_FAKE" or
+        "NOT_SUFFICIENT_INFORMATION"), routing_decision and reason.
     """
+    real_mass = combined_mass.get("REAL", 0.0)
+    fake_mass = combined_mass.get("FAKE", 0.0)
+    uncertain_mass = combined_mass.get("UNCERTAIN", 1.0 - real_mass - fake_mass)
+    conflict = combined_mass.get("conflict", 0.0)
 
-    dst = DSTEngine()
-    masses = []
-    flags = []
+    dst_score = round(max(real_mass, fake_mass), 6)
 
-    # Check 1: Free Email Provider
-    recruiter_email = (
-        entities.get("recruiter_email")
-        or entities.get("email_or_phone", "")
-    )
-
-    free_email_domains = [
-        "gmail.com",
-        "yahoo.com",
-        "hotmail.com",
-        "outlook.com"
-    ]
-
-    if recruiter_email and any(
-        recruiter_email.lower().endswith("@" + d)
-        for d in free_email_domains
-    ):
-        flags.append(
-            "WARNING: Recruiter uses free public email provider "
-            "(e.g. @gmail.com)"
+    if conflict > HIGH_CONFLICT_THRESHOLD:
+        status = "NOT_SUFFICIENT_INFORMATION"
+        reason = f"Sources disagree (conflict K={conflict:.3f} > {HIGH_CONFLICT_THRESHOLD})"
+    elif dst_score < SUFFICIENT_BELIEF_THRESHOLD:
+        status = "NOT_SUFFICIENT_INFORMATION"
+        reason = (
+            f"Strongest belief {dst_score:.3f} < {SUFFICIENT_BELIEF_THRESHOLD} "
+            f"(m(UNCERTAIN)={uncertain_mass:.3f})"
         )
+    elif real_mass >= fake_mass:
+        status = "SUFFICIENT_REAL"
+        reason = f"m(REAL)={real_mass:.3f} >= {SUFFICIENT_BELIEF_THRESHOLD}"
+    else:
+        status = "SUFFICIENT_FAKE"
+        reason = f"m(FAKE)={fake_mass:.3f} >= {SUFFICIENT_BELIEF_THRESHOLD}"
 
-    # Check 2: Convert retrieved evidence to mass functions
-    for doc in retrieved_evidence:
-        meta = doc.get("metadata", {})
-
-        # Support similarity score or distance
-        # FAISS lower distance = higher similarity
-        if "similarity_score" in doc:
-            sim = float(doc["similarity_score"])
-        elif "distance" in doc:
-            dist = float(doc["distance"])
-            sim = max(
-                0.0,
-                1.0 - (dist / 2.0)
-            )
-        else:
-            sim = 0.7
-
-        source_type = meta.get(
-            "source_type",
-            "unknown"
-        )
-
-        is_fraudulent = int(
-            meta.get(
-                "fraudulent",
-                1 if source_type == "scam_report" else 0
-            )
-        )
-
-        mass = dst.assign_mass_function(
-            similarity_score=sim,
-            source_type=source_type,
-            is_fraudulent=is_fraudulent,
-            metadata_quality=0.8
-        )
-
-        masses.append(mass)
-
-        if is_fraudulent == 1:
-            flags.append(
-                "CRITICAL: Scam report pattern detected from "
-                f"database record (doc: {meta.get('doc_id', 'N/A')})"
-            )
-
-    # Check 3: Process Person 2 Voice Signals Evidence
-    if voice_signals:
-        voice_conf = float(
-            voice_signals.get(
-                "confidence",
-                0.90
-            )
-        )
-
-        is_fraud = 1 if (
-            voice_signals.get("company_denied_role")
-            or voice_signals.get("payment_requested")
-            or voice_signals.get("suspicious_response")
-        ) else (
-            0 if (
-                voice_signals.get("company_reached")
-                and voice_signals.get("role_actively_hiring")
-            )
-            else None
-        )
-
-        if is_fraud is not None:
-            voice_mass = dst.assign_mass_function(
-                similarity_score=voice_conf,
-                source_type="voice_call",
-                is_fraudulent=is_fraud,
-                metadata_quality=0.95
-            )
-
-            masses.append(voice_mass)
-
-            if is_fraud == 1:
-                flags.append(
-                    "CRITICAL VOICE SIGNAL: Phone verification failed "
-                    "or confirmed fake offer/payment request"
-                )
-            else:
-                flags.append(
-                    "VERIFIED VOICE SIGNAL: Phone call to company "
-                    "confirmed legitimate hiring position"
-                )
-
-    # Combine all masses using Dempster's Rule
-    combined_mass = dst.combine_all(masses)
-
-    # Convert DST belief into 0-100 Trust Score
-    real_belief = combined_mass.get("REAL", 0.0)
-    fake_belief = combined_mass.get("FAKE", 0.0)
-
-    trust_score = round(
-        max(
-            0.0,
-            (
-                real_belief -
-                fake_belief +
-                1.0
-            ) / 2.0 * 100.0
-        ),
-        2
-    )
-
-    if any(
-        "WARNING" in f or "CRITICAL" in f
-        for f in flags
-    ):
-        trust_score = min(
-            trust_score,
-            60.0
-            if not any("CRITICAL" in f for f in flags)
-            else 35.0
-        )
-
-    risk_level = (
-        "HIGH RISK"
-        if trust_score < 50
-        else (
-            "MEDIUM RISK"
-            if trust_score < 75
-            else "LOW RISK"
-        )
-    )
-
-    belief_summary = dst.get_belief_strength(
-        combined_mass
-    )
-
-    conflict_summary = dst.get_conflict_info(
-        combined_mass
+    routing = (
+        ROUTE_TO_VOICE_AGENT
+        if status == "NOT_SUFFICIENT_INFORMATION"
+        else PROCEED_TO_CONFIDENCE_FRAMEWORK
     )
 
     return {
-        "final_trust_score": trust_score,
-        "risk_level": risk_level,
-        "flags_raised": list(dict.fromkeys(flags)),
-        "dst_summary": (
-            f"Belief: {belief_summary} | "
-            f"Conflict: {conflict_summary}"
-        ),
-        "mrav_explanation": (
-            "DST Evidence Fusion complete. "
-            f"REAL belief: {real_belief:.4f}, "
-            f"FAKE belief: {fake_belief:.4f}, "
-            f"UNCERTAIN: "
-            f"{combined_mass.get('UNCERTAIN', 0.0):.4f}, "
-            f"Conflict: "
-            f"{combined_mass.get('conflict', 0.0):.4f}"
-        ),
-        "combined_mass": combined_mass
+        "dst_score": dst_score,
+        "dst_status": status,
+        "routing_decision": routing,
+        "reason": reason,
     }
-
-
-if __name__ == "__main__":
-    print(
-        "--- Dempster-Shafer Theory (DST) Objective 2 Demo ---"
-    )
-
-    mock_entities = {
-        "company_name": "Food52",
-        "job_role": "Marketing Intern",
-        "recruiter_email": "recruiting-food52@gmail.com",
-        "domain_or_website": "food52.com"
-    }
-
-    mock_evidence = [
-        {
-            "page_content": "Food52 official job record",
-            "metadata": {
-                "source_type": "legitimate_job_record",
-                "fraudulent": 0,
-                "doc_id": "LEGIT_01"
-            },
-            "similarity_score": 0.88
-        },
-        {
-            "page_content": (
-                "Scam alert: gmail recruitment from "
-                "Food52 impersonator"
-            ),
-            "metadata": {
-                "source_type": "scam_report",
-                "fraudulent": 1,
-                "doc_id": "SCAM_01"
-            },
-            "similarity_score": 0.75
-        }
-    ]
-
-    res = run_objective_2_dst(
-        mock_entities,
-        mock_evidence
-    )
-
-    print(f"Trust Score : {res['final_trust_score']}/100")
-    print(f"Risk Level  : {res['risk_level']}")
-    print(f"Flags       : {res['flags_raised']}")
-    print(f"DST Summary : {res['dst_summary']}")
-    print(f"Masses      : {res['combined_mass']}")

@@ -73,11 +73,14 @@ async function sendTranscript(transcript) {
     console.log(`[AI Interface]   text: "${transcript.text}"`);
     console.log(`[AI Interface]   timestamp: ${transcript.timestamp}`);
 
-    // Emit as an event (Person 2 can also listen here instead of replacing this function)
+    // Emit as an event
     aiEvents.emit('transcript', transcript);
 
     // ════════════════════════════════════════════
-    // MOCK RESPONSE — Person 2 replaces this block
+    // MOCK RESPONSE
+    // Note: When using the Python bridge (webrtc-call + whisper_Test integration),
+    // this file is BYPASSED. server.js forwards the raw audio directly to the
+    // bridge, which handles STT + AI + TTS in one go.
     // ════════════════════════════════════════════
     const mockResponse = _getMockResponse(transcript);
 
@@ -86,7 +89,6 @@ async function sendTranscript(transcript) {
     console.log(`[AI Interface]   conversation_complete: ${mockResponse.conversation_complete}`);
 
     return mockResponse;
-    // ════════════════════════════════════════════
 }
 
 // ── Agent response handler (Person 1 owns this) ───────────────────────────────

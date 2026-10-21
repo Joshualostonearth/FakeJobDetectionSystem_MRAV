@@ -46,6 +46,7 @@ class AudioManager {
         this._isRecording     = false;
         this._audioContext    = null;
         this._ttsTrackSender  = null; // RTCRtpSender for the TTS audio track
+        this._originalMicTrack = null; // saved mic track to restore after TTS
         this._mode            = 'human'; // 'human' | 'agent'
         this._mimeType        = this._detectSupportedMimeType();
         this._autoRecord      = false;  // when true, auto-starts recording when remote track arrives
@@ -65,6 +66,9 @@ class AudioManager {
 
         /** @type {function(string): void} */
         this.onStateChange  = null;
+        
+        /** @type {function(): void} */
+        this.onTTSComplete  = null;
 
         console.log('[Audio] AudioManager initialised. MIME type:', this._mimeType || 'unknown');
     }
@@ -171,6 +175,58 @@ class AudioManager {
         this._isRecording = true;
         console.log('[Audio] Started recording remote audio. MIME:', this._mimeType);
         this._emitState('recording:started');
+    }
+    
+    /**
+     * Start recording and automatically stop after a period of silence.
+     * @param {number} silenceMs - Milliseconds of silence before stopping.
+     */
+    startRemoteAudioCaptureWithSilenceDetection(silenceMs = 2000) {
+        this.startRemoteAudioCapture();
+        
+        if (!this._audioContext || this._audioContext.state === 'closed') {
+            this._audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const analyser = this._audioContext.createAnalyser();
+        const source = this._audioContext.createMediaStreamSource(this.remoteStream);
+        source.connect(analyser);
+        
+        let silenceStart = null;
+        const recordingStartTime = Date.now();
+        const minRecordingMs = 3000; // Wait at least 3s before allowing silence-stop
+        
+        const checkSilence = () => {
+            if (!this._isRecording) return; // Stop checking if recording stopped
+            
+            const data = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(data);
+            const volume = data.reduce((a, b) => a + b, 0) / data.length;
+            
+            const elapsed = Date.now() - recordingStartTime;
+            
+            // Don't check for silence until minimum recording time has passed
+            if (elapsed < minRecordingMs) {
+                requestAnimationFrame(checkSilence);
+                return;
+            }
+            
+            if (volume < 5) { // silence threshold
+                if (!silenceStart) {
+                    silenceStart = Date.now();
+                } else if (Date.now() - silenceStart > silenceMs) {
+                    console.log(`[Audio] Silence detected for ${silenceMs}ms after ${(elapsed/1000).toFixed(1)}s recording. Stopping capture.`);
+                    this.stopRemoteAudioCapture();
+                    return;
+                }
+            } else {
+                silenceStart = null;
+            }
+            
+            requestAnimationFrame(checkSilence);
+        };
+        
+        checkSilence();
     }
 
     /**
@@ -313,6 +369,11 @@ class AudioManager {
             source.onended = () => {
                 console.log('[Audio] TTS playback complete.');
                 this._emitState('tts:ended');
+                // Restore mic track so phone user audio comes through again
+                this._restoreMicTrack();
+                if (typeof this.onTTSComplete === 'function') {
+                    this.onTTSComplete();
+                }
             };
 
         } catch (err) {
@@ -324,28 +385,47 @@ class AudioManager {
      * Inject a TTS MediaStreamTrack into the RTCPeerConnection.
      * 
      * Strategy:
-     *   - If a previous TTS sender exists, replace its track.
-     *   - If not, add the track as a new sender.
-     * 
-     * The microphone track (from localStream) is NOT touched.
+     *   - Find the existing audio sender (the mic track) and replace it
+     *     with the TTS track. This avoids renegotiation entirely.
+     *   - Save the original mic track so it can be restored after TTS ends.
      * 
      * @private
      * @param {MediaStreamTrack} ttsTrack
      */
     async _injectTTSTrack(ttsTrack) {
-        if (this._ttsTrackSender) {
-            // Replace the existing TTS track without renegotiation
-            await this._ttsTrackSender.replaceTrack(ttsTrack);
-            console.log('[WebRTC] Replaced existing TTS track.');
+        // Find the existing audio sender (mic track)
+        const senders = this.peerConnection.getSenders();
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+
+        if (audioSender) {
+            // Save original mic track for restoration after TTS
+            if (!this._originalMicTrack) {
+                this._originalMicTrack = audioSender.track;
+            }
+            await audioSender.replaceTrack(ttsTrack);
+            this._ttsTrackSender = audioSender;
+            console.log('[WebRTC] Replaced mic track with TTS track.');
         } else {
-            // Add as a new sender — NOTE: this may trigger renegotiation
-            // In a simple 2-peer call this is fine; for complex topologies
-            // consider using replaceTrack on the mic sender instead.
+            console.warn('[WebRTC] No audio sender found. Adding TTS track as new sender.');
             this._ttsTrackSender = this.peerConnection.addTrack(
                 ttsTrack,
                 new MediaStream([ttsTrack])
             );
-            console.log('[WebRTC] Added TTS track to RTCPeerConnection.');
+        }
+    }
+
+    /**
+     * Restore the original microphone track after TTS playback ends.
+     * @private
+     */
+    async _restoreMicTrack() {
+        if (this._originalMicTrack && this._ttsTrackSender) {
+            try {
+                await this._ttsTrackSender.replaceTrack(this._originalMicTrack);
+                console.log('[WebRTC] Restored original mic track.');
+            } catch (err) {
+                console.error('[WebRTC] Failed to restore mic track:', err);
+            }
         }
     }
 

@@ -72,7 +72,7 @@ class EvidenceRetriever:
                 all_results.extend(legit_results)
             
             # 2. Scam Report Query
-            scam_query = f"{entities.company_name} {entities.job_role or ''} {entities.email_or_phone or ''} scam fraud fake offer".strip()
+            scam_query = f"{entities.company_name} {entities.job_role or ''} {entities.recruiter_email or ''} scam fraud fake offer".strip()
             if scam_query:
                 scam_results = self.vector_db.similarity_search_with_score(
                     query=scam_query, 

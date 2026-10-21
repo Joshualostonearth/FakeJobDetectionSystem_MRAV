@@ -1,24 +1,4 @@
 1
-00:00:03,072 --> 00:00:13,451
- Um...
-
-2
-00:00:13,451 --> 00:00:14,451
- Hello.
-
-3
-00:00:14,471 --> 00:00:17,472
- I'm an automated A.I. assistant in Colorado.
-
-4
-00:00:17,472 --> 00:00:22,472
- So, just know about your politics, actually.
-
-5
-00:00:23,001 --> 00:00:27,001
- Thank you very much for your time.
-
-6
-00:00:27,001 --> 00:00:28,416
- What we have done...
+00:00:01,024 --> 00:00:03,823
+ Hello? Okay, that's it.
 

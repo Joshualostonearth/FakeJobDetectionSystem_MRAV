@@ -38,3 +38,9 @@ share/python-wheels/
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Large / generated artifacts (rebuild locally)
+data/
+node_modules/
+.pytest_cache/
+*.zip

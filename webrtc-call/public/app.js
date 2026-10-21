@@ -23,6 +23,11 @@ const btnStartAI   = document.getElementById('btn-start-ai');
 const btnStopAI    = document.getElementById('btn-stop-ai');
 const btnTestTTS   = document.getElementById('btn-test-tts');
 
+// Session controls
+const btnStartSession = document.getElementById('btn-start-session');
+const inputFileSelect = document.getElementById('input-file');
+const questionsListEl = document.getElementById('questions-list');
+
 // Transcript / Agent panel
 const transcriptEl = document.getElementById('transcript-text');
 const agentEl      = document.getElementById('agent-text');
@@ -44,6 +49,10 @@ const iceServers = {
     ]
 };
 
+// Session State
+let sessionActive = false;
+let currentQuestionIndex = 0;
+
 // ═════════════════════════════════════════════════════════════════════════════
 // AUDIO MANAGER SETUP
 // ═════════════════════════════════════════════════════════════════════════════
@@ -53,8 +62,15 @@ const audioManager = new AudioManager();
 // ── Person 2 transcript callback ──────────────────────────────────────────────
 // Person 2 can replace or extend this callback.
 audioManager.onTranscript = (transcript) => {
-    console.log('[App] Transcript received:', transcript.text);
-    updateTranscriptPanel(transcript.text);
+    console.log('[App] Transcript received via fetch:', transcript.text);
+    // UI update is handled by the socket.on('transcript') listener to keep things centralized
+};
+
+// ── Auto-loop trigger ─────────────────────────────────────────────────────────
+audioManager.onTTSComplete = () => {
+    if (sessionActive) {
+        setTimeout(() => autoRecordLoop(), 500); // Small pause before next question
+    }
 };
 
 // ── Error callback ────────────────────────────────────────────────────────────
@@ -139,6 +155,9 @@ function connectSignaling() {
         updateStatus(callStatusEl, 'Incoming call...');
         btnCall.style.display   = 'none';
         btnAccept.style.display = 'block';
+        
+        // Start playing the ringing sound
+        startRinging();
     });
 
     // Handle incoming answer (unchanged)
@@ -173,9 +192,36 @@ function connectSignaling() {
         console.log('[App] Agent response received via Socket.IO:', response.text?.substring(0, 60));
         updateAgentPanel(response.text);
         updateAIStatus('Agent responding...', '#2ecc71');
+        
+        if (response.questionIndex !== undefined) {
+            updateQuestionStatus(response.questionIndex, response.conversation_complete);
+        }
 
-        // Route TTS audio through WebRTC
-        audioManager.handleAgentResponse(response);
+        // Route TTS audio through WebRTC — only on the operator device (Person 1)
+        // The other device (Person 2 / phone) hears it through the WebRTC audio stream
+        if (response.ttsUrl && sessionActive) {
+            audioManager.handleAgentResponse(response);
+
+            // If this is the final response, end session AFTER TTS finishes playing
+            if (response.conversation_complete) {
+                const origCallback = audioManager.onTTSComplete;
+                audioManager.onTTSComplete = () => {
+                    sessionActive = false;
+                    updateAIStatus('Verification Complete', '#2ecc71');
+                    btnStartSession.disabled = false;
+                    // Restore the normal callback
+                    audioManager.onTTSComplete = origCallback;
+                };
+            }
+        } else if (response.conversation_complete) {
+            // No TTS but conversation is done
+            sessionActive = false;
+            updateAIStatus('Verification Complete', '#2ecc71');
+            btnStartSession.disabled = false;
+        } else if (sessionActive) {
+            // No TTS (e.g. wait request), just start listening again immediately
+            setTimeout(() => autoRecordLoop(), 500);
+        }
     });
 
     // ── NEW: Transcript echoed back from server ────────────────────────────────
@@ -224,6 +270,7 @@ function createPeerConnection() {
         // Enable AI pipeline controls
         btnStartAI.disabled = false;
         btnTestTTS.disabled = false;
+        if (btnStartSession) btnStartSession.disabled = false;
 
         console.log('[WebRTC] Remote stream wired to AudioManager.');
     };
@@ -277,6 +324,7 @@ async function startCall() {
 }
 
 async function acceptCall() {
+    stopRinging();
     btnAccept.style.display = 'none';
     btnCall.style.display   = 'block';
     btnCall.disabled        = true;
@@ -297,6 +345,8 @@ async function acceptCall() {
 }
 
 function cleanupCall(reason) {
+    stopRinging();
+
     if (peerConnection) {
         peerConnection.close();
         peerConnection = null;
@@ -317,6 +367,8 @@ function cleanupCall(reason) {
     btnStartAI.disabled     = true;
     btnStopAI.disabled      = true;
     btnTestTTS.disabled     = true;
+    if (btnStartSession) btnStartSession.disabled = true;
+    sessionActive           = false;
     updateAIStatus('Idle', '#888');
 }
 
@@ -370,6 +422,102 @@ async function testTTS() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// 6. VERIFICATION SESSION CONTROLS
+// ═════════════════════════════════════════════════════════════════════════════
+
+async function startVerificationSession() {
+    if (!remoteStream) {
+        alert('No active call. Please connect to a call first.');
+        return;
+    }
+    
+    btnStartSession.disabled = true;
+    updateAIStatus('Starting session...', '#f0a500');
+    
+    try {
+        // Fetch the local JSON file (input data with company info + suspicion reasons)
+        const fileName = inputFileSelect.value;
+        const resJson = await fetch(`/${fileName}.json`);
+        const inputData = await resJson.json();
+        
+        // Step 1: Create the session (generates questions via Ministral)
+        const res = await fetch('/api/start-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(inputData),
+        });
+        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        
+        sessionActive = true;
+        updateQuestionsPanel(data.questions);
+        audioManager.setMode('agent');
+        
+        // Step 2: Speak the greeting + Q1 (generates TTS audio)
+        updateAIStatus('AI introducing itself...', '#f0a500');
+        const speakRes = await fetch('/api/speak-first', { method: 'POST' });
+        const speakData = await speakRes.json();
+        
+        if (speakData.success && speakData.tts_audio_b64) {
+            // The server already emits 'agent-response' via Socket.IO,
+            // which triggers TTS playback and then autoRecordLoop via onTTSComplete.
+            updateAgentPanel(speakData.agent_text);
+            updateAIStatus('AI speaking Q1...', '#2ecc71');
+        } else {
+            // Fallback: no TTS, just start listening
+            console.warn('[Session] speak-first returned no audio, starting listen loop.');
+            autoRecordLoop();
+        }
+        
+    } catch (err) {
+        console.error('[Session] Failed to start:', err);
+        updateAIStatus('Failed to start session: ' + err.message, 'red');
+        btnStartSession.disabled = false;
+    }
+}
+
+function autoRecordLoop() {
+    if (!sessionActive || !remoteStream) return;
+    updateAIStatus('Listening...', '#f0a500');
+    audioManager.startRemoteAudioCaptureWithSilenceDetection(2000);
+}
+
+function updateQuestionsPanel(questions) {
+    if (!questionsListEl) return;
+    questionsListEl.innerHTML = '';
+    
+    questions.forEach((q, idx) => {
+        const div = document.createElement('div');
+        div.className = 'question-item';
+        div.id = `question-${idx}`;
+        div.innerHTML = `
+            <span class="status-dot"></span>
+            <span class="question-text">Q${q.id}: ${q.purpose}</span>
+        `;
+        questionsListEl.appendChild(div);
+    });
+}
+
+function updateQuestionStatus(index, isComplete) {
+    if (!questionsListEl) return;
+    
+    // Reset all
+    document.querySelectorAll('.question-item').forEach((el, i) => {
+        el.classList.remove('active');
+        if (i < index) el.classList.add('completed');
+    });
+    
+    if (!isComplete && index >= 0) {
+        const activeEl = document.getElementById(`question-${index}`);
+        if (activeEl) {
+            activeEl.classList.add('active');
+            activeEl.classList.remove('completed');
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // UTILITY
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -389,15 +537,83 @@ function updateAIStatus(text, color = '#888') {
 
 function updateTranscriptPanel(text) {
     if (transcriptEl) {
-        transcriptEl.textContent = text;
-        transcriptEl.style.opacity = '1';
+        if (transcriptEl.textContent.trim() === 'Transcript will appear here after recording...') {
+            transcriptEl.textContent = '';
+        }
+        const p = document.createElement('div');
+        p.style.marginBottom = '8px';
+        p.textContent = `> ${text}`;
+        transcriptEl.appendChild(p);
+        transcriptEl.scrollTop = transcriptEl.scrollHeight;
     }
 }
 
 function updateAgentPanel(text) {
     if (agentEl) {
-        agentEl.textContent = text;
-        agentEl.style.opacity = '1';
+        if (agentEl.textContent.trim() === 'Agent response will appear here...') {
+            agentEl.textContent = '';
+        }
+        const p = document.createElement('div');
+        p.style.marginBottom = '8px';
+        p.textContent = `> ${text}`;
+        agentEl.appendChild(p);
+        agentEl.scrollTop = agentEl.scrollHeight;
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RINGTONE LOGIC
+// ═════════════════════════════════════════════════════════════════════════════
+
+let ringtoneInterval;
+let ringtoneAudioCtx;
+
+function startRinging() {
+    if (ringtoneAudioCtx) return; // already ringing
+    
+    // Create audio context only when needed
+    ringtoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playRingBeep() {
+        if (!ringtoneAudioCtx || ringtoneAudioCtx.state === 'closed') return;
+        
+        const osc1 = ringtoneAudioCtx.createOscillator();
+        const osc2 = ringtoneAudioCtx.createOscillator();
+        const gainNode = ringtoneAudioCtx.createGain();
+        
+        // Classic US/UK dual-tone ring frequencies
+        osc1.frequency.value = 440;
+        osc2.frequency.value = 480;
+        
+        osc1.connect(gainNode);
+        osc2.connect(gainNode);
+        gainNode.connect(ringtoneAudioCtx.destination);
+        
+        const now = ringtoneAudioCtx.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Fade in
+        gainNode.gain.setValueAtTime(0.3, now + 1.95);
+        gainNode.gain.linearRampToValueAtTime(0, now + 2.0);    // Fade out
+        
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 2.0);
+        osc2.stop(now + 2.0);
+    }
+    
+    // Play immediately, then repeat every 4 seconds (2s ring, 2s silence)
+    playRingBeep();
+    ringtoneInterval = setInterval(playRingBeep, 4000);
+}
+
+function stopRinging() {
+    if (ringtoneInterval) {
+        clearInterval(ringtoneInterval);
+        ringtoneInterval = null;
+    }
+    if (ringtoneAudioCtx) {
+        ringtoneAudioCtx.close();
+        ringtoneAudioCtx = null;
     }
 }
 
@@ -419,3 +635,7 @@ btnHangup.addEventListener('click', hangUp);
 btnStartAI.addEventListener('click', startAIPipeline);
 btnStopAI.addEventListener('click',  stopAIPipeline);
 btnTestTTS.addEventListener('click', testTTS);
+
+if (btnStartSession) {
+    btnStartSession.addEventListener('click', startVerificationSession);
+}

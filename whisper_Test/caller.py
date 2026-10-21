@@ -650,6 +650,254 @@ class CallSession:
 
 
 # ──────────────────────────────────────────────
+# WebRTC Call Session — Step-by-step mode
+# ──────────────────────────────────────────────
+
+class WebRTCCallSession:
+    """Non-blocking version of CallSession for HTTP bridge use.
+
+    Instead of running a blocking loop over all 10 questions, this class
+    lets an external caller advance one question at a time via HTTP.
+
+    State machine:
+        READY → WAITING_FOR_ANSWER → (process_answer) → WAITING_FOR_ANSWER → ... → COMPLETE
+
+    Usage:
+        session = WebRTCCallSession(response_data, response_path)
+        q = session.get_current_question()   # returns Q1
+        result = session.process_answer("Yes, this is Acme Tech.")
+        # result = { answer_recorded, next_question, conversation_complete, ... }
+    """
+
+    def __init__(self, response_data: dict, response_path: str):
+        self.response_data = response_data
+        self.response_path = response_path
+        self.current_index = 0
+        self._call_ended = False
+        self._prev_question = None
+
+    @property
+    def total_questions(self) -> int:
+        return len(self.response_data.get("responses", []))
+
+    @property
+    def is_complete(self) -> bool:
+        return self._call_ended or self.current_index >= self.total_questions
+
+    def get_state(self) -> dict:
+        """Return current session state for the /bridge/status endpoint."""
+        return {
+            "state": "complete" if self.is_complete else "active",
+            "question_index": self.current_index,
+            "total_questions": self.total_questions,
+            "call_ended": self._call_ended,
+        }
+
+    def get_current_question(self) -> dict | None:
+        """Return the current question entry, or None if done."""
+        if self.is_complete:
+            return None
+        return self.response_data["responses"][self.current_index]
+
+    def get_greeting_text(self) -> str:
+        """Return the greeting: a standalone introduction statement + Q1.
+
+        The introduction is always a statement (not a question) that discloses
+        the AI identity. The actual Q1 from the response data is appended as
+        the first verification question.
+        """
+        company = self.response_data.get("meta", {}).get("company", "your company")
+        intro = (
+            f"Hello, this is an automated AI assistant calling on behalf of a "
+            f"candidate who received a job offer from {company}."
+        )
+        if self.total_questions > 0:
+            q = self.response_data["responses"][0]
+            return f"{intro} {q['question']}"
+        return intro
+
+    def process_answer(self, transcript: str) -> dict:
+        """Process one answer from the phone user, advance to next question.
+
+        This is the core method the bridge calls for each audio upload.
+        It replicates the inner loop logic from CallSession.run().
+
+        Args:
+            transcript: The STT transcript of the phone user's speech.
+
+        Returns:
+            {
+                "answer_recorded": str | None,
+                "answer_status": "answered" | "no_answer",
+                "next_question": str | None,
+                "conversation_complete": bool,
+                "question_index": int,
+                "total_questions": int,
+            }
+        """
+        if self.is_complete:
+            return {
+                "answer_recorded": None,
+                "answer_status": "complete",
+                "next_question": None,
+                "conversation_complete": True,
+                "question_index": self.current_index,
+                "total_questions": self.total_questions,
+            }
+
+        entry = self.response_data["responses"][self.current_index]
+        question = entry["question"]
+
+        print(f"\n  ── Processing answer for Q{entry['id']}/{self.total_questions} ──")
+
+        # Record asked_at if not already set
+        if not entry.get("asked_at"):
+            entry["asked_at"] = get_time()
+
+        reply = transcript.strip() if transcript else ""
+
+        if reply:
+            reply_lower = reply.lower()
+
+            # Check for special situations (reusing CallSession's static methods)
+
+            # They asked if we're a bot — note this for the bridge
+            # (In the WebRTC flow, the bridge will speak the bot-disclosure
+            # and re-ask the question via a separate response)
+            if self._is_bot_question(reply_lower):
+                print(f"  [SESSION] Bot question detected. Will re-ask after disclosure.")
+                # Don't advance — return special response
+                return {
+                    "answer_recorded": None,
+                    "answer_status": "bot_question",
+                    "next_question": question,  # re-ask same question
+                    "bot_disclosure": "Yes, I am an automated AI assistant calling on behalf of a candidate.",
+                    "conversation_complete": False,
+                    "question_index": self.current_index,
+                    "total_questions": self.total_questions,
+                }
+
+            # They asked to wait — tell the bridge to listen again with longer timeout
+            if self._is_wait_request(reply_lower):
+                print(f"  [SESSION] Wait request detected.")
+                return {
+                    "answer_recorded": None,
+                    "answer_status": "wait_request",
+                    "next_question": None,  # don't re-ask, just listen again
+                    "conversation_complete": False,
+                    "question_index": self.current_index,
+                    "total_questions": self.total_questions,
+                }
+
+            # They asked for sensitive data
+            if self._is_sensitive_request(reply_lower):
+                print(f"  [SESSION] Sensitive data request detected.")
+                return {
+                    "answer_recorded": None,
+                    "answer_status": "sensitive_request",
+                    "next_question": question,  # re-ask
+                    "sensitive_refusal": "I am sorry, I cannot share personal details.",
+                    "conversation_complete": False,
+                    "question_index": self.current_index,
+                    "total_questions": self.total_questions,
+                }
+
+            # They refused or ended the call
+            if self._is_refusal(reply_lower):
+                print(f"  [SESSION] Call refusal detected.")
+                cleaned = CallSession._clean_answer(reply, question, self._prev_question)
+                entry["answer"] = cleaned
+                entry["status"] = "answered"
+                entry["answered_at"] = get_time()
+                self._call_ended = True
+                self._save()
+
+                # Mark remaining questions as no_answer
+                for remaining in self.response_data["responses"][self.current_index + 1:]:
+                    remaining["status"] = "no_answer"
+                    remaining["answer"] = None
+                self._save()
+
+                return {
+                    "answer_recorded": cleaned,
+                    "answer_status": "refusal",
+                    "next_question": None,
+                    "conversation_complete": True,
+                    "question_index": self.current_index,
+                    "total_questions": self.total_questions,
+                }
+
+            # Normal answer — clean and record
+            cleaned = CallSession._clean_answer(reply, question, self._prev_question)
+            entry["answer"] = cleaned
+            entry["status"] = "answered"
+            entry["answered_at"] = get_time()
+            print(f"  A: {cleaned}")
+
+        else:
+            # No speech detected
+            entry["status"] = "no_answer"
+            entry["answer"] = None
+            entry["answered_at"] = None
+            print(f"  A: (no answer)")
+
+        # Save after every question
+        self._save()
+        self._prev_question = question
+        self.current_index += 1
+
+        # Get next question (if any)
+        next_q = self.get_current_question()
+        next_text = next_q["question"] if next_q else None
+        is_complete = self.is_complete
+
+        # If we just finished the last question, mark session complete
+        if is_complete:
+            self.response_data["meta"]["completed_at"] = get_time()
+            self._save()
+
+        return {
+            "answer_recorded": entry.get("answer"),
+            "answer_status": entry.get("status", "no_answer"),
+            "next_question": next_text,
+            "conversation_complete": is_complete,
+            "question_index": self.current_index,
+            "total_questions": self.total_questions,
+        }
+
+    def _save(self):
+        """Write the response file immediately."""
+        write_file(self.response_path, json.dumps(self.response_data, indent=2, ensure_ascii=False))
+
+    # ── Reuse detection methods from CallSession ──
+
+    @staticmethod
+    def _is_bot_question(text: str) -> bool:
+        bot_phrases = ["are you a bot", "are you a robot", "are you ai", "are you an ai",
+                       "is this a bot", "is this ai", "are you human", "are you a real person"]
+        return any(p in text for p in bot_phrases)
+
+    @staticmethod
+    def _is_wait_request(text: str) -> bool:
+        wait_phrases = ["hold on", "one moment", "please wait", "give me a moment",
+                        "just a second", "hold please", "one second"]
+        return any(p in text for p in wait_phrases)
+
+    @staticmethod
+    def _is_sensitive_request(text: str) -> bool:
+        sensitive_phrases = ["bank account", "bank details", "credit card", "social security",
+                             "password", "otp", "id number", "aadhaar", "passport number",
+                             "pin number"]
+        return any(p in text for p in sensitive_phrases)
+
+    @staticmethod
+    def _is_refusal(text: str) -> bool:
+        refusal_phrases = ["goodbye", "i'm hanging up", "don't call again", "stop calling",
+                           "i refuse", "no comment", "end this call", "not interested"]
+        return any(p in text for p in refusal_phrases)
+
+
+# ──────────────────────────────────────────────
 # Main Orchestrator — Phases 1-4
 # ──────────────────────────────────────────────
 

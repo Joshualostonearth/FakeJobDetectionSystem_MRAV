@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -28,7 +29,7 @@ def extract_entities_from_text(text: str, api_key: str = "") -> JobOfferEntities
 
     if HAS_LANGCHAIN_OLLAMA:
         try:
-            llm = ChatOllama(model="llama3.2", temperature=0)
+            llm = ChatOllama(model=os.getenv("OLLAMA_EXTRACT_MODEL", "llama3.2"), temperature=0)
             structured_llm = llm.with_structured_output(JobOfferEntities)
             
             prompt = ChatPromptTemplate.from_messages([

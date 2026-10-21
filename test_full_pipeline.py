@@ -6,11 +6,25 @@ from engines.credibility_engine import Run_Objective_2_Filter
 def run_test():
     print("--- 1. RUNNING OBJECTIVE 1a: Entity Extraction via Ollama ---")
     mock_raw_offer = """
-    Food52 - Marketing Intern Offer
-    Location: New York, NY
-    Contact: recruiting-food52@gmail.com
-    Website: food52.com
-    Please reply to confirm your acceptance.
+    Wikimedia Foundation - Senior Software Engineer (Backend)
+    Location: Remote (US)
+    Contact: jobs@wikimedia.org
+    Website: wikimediafoundation.org
+
+    About the Role:
+    The Wikimedia Foundation is looking for a Senior Software Engineer to join our Core Platform team. 
+    You will work on maintaining and scaling the core web services that power Wikipedia and other free knowledge projects.
+
+    Responsibilities:
+    - Write high-quality PHP and Go code for MediaWiki and backend infrastructure.
+    - Scale services handling billions of monthly requests.
+    - Collaborate with an international open-source community.
+
+    Requirements:
+    - 5+ years of experience in backend development.
+    - Deep understanding of distributed systems, caching, and MySQL/MariaDB.
+
+    Apply via our official career portal at wikimediafoundation.org/careers or contact jobs@wikimedia.org.
     """
     
     # Extract entities using local Ollama (Llama 3.2)
