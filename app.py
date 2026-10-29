@@ -27,7 +27,7 @@ import streamlit as st
 from pipeline_bridge import handle_ui_submission, handle_phone_verification
 from ocr_engine import init_ocr_reader
 from search_engine import EvidenceRetriever
-from explainability import explain_phone_verification, summarize_with_llm
+from explainability import explain_phone_verification, highlight_html, summarize_with_llm
 
 # 1. Page Configuration
 st.set_page_config(
@@ -549,16 +549,42 @@ if res:
         st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Why This Verdict</p>", unsafe_allow_html=True)
         st.markdown(
             "<p style='font-size: 13px; margin-bottom: 8px;'>Effect = how much the confidence that the offer is real "
-            "changes when that source is left out (before any override). Positive points to a real offer, negative to a scam.</p>",
+            "changes when that source is left out. SHAP = the source's fair share of the confidence, shared out over "
+            f"every combination of sources; the shares add up to the confidence minus {vexp['shap_base'] * 100:.0f} pts "
+            "(the confidence with no evidence). Both are before any override. Positive points to a real offer, negative to a scam.</p>",
             unsafe_allow_html=True,
         )
         rows = "".join(
             f"<tr><th>{html.escape(f['label'])}</th>"
             f"<td style='color: {'#326080' if f['effect'] >= 0 else '#A33A2B'}; font-weight: 700;'>{f['effect'] * 100:+.0f} pts</td>"
+            f"<td style='color: {'#326080' if f['shap'] >= 0 else '#A33A2B'};'>SHAP {f['shap'] * 100:+.0f} pts</td>"
             f"<td>{html.escape(f['detail'])}</td></tr>"
             for f in vexp["factors"]
         ) or "<tr><td>No evidence sources were combined.</td></tr>"
         st.markdown(f"<table class='entity-table'>{rows}</table>", unsafe_allow_html=True)
+
+        # SHAP on the text classifier: which words of the offer pushed it each way
+        cwords = res.get("classifier_words")
+        if cwords:
+            st.markdown("<p style='font-weight: 700; margin: 12px 0 8px 0;'>Words That Drove the Text Classifier (SHAP)</p>", unsafe_allow_html=True)
+            scam_col, legit_col = st.columns([1, 1], gap="medium")
+            for col, title, words in (
+                (scam_col, "Towards Scam", cwords["top_scam_words"]),
+                (legit_col, "Towards Legitimate", cwords["top_legit_words"]),
+            ):
+                with col:
+                    word_rows = "".join(
+                        f"<tr><th>{html.escape(w['word'])}</th><td>{w['contribution']:+.3f}</td></tr>" for w in words
+                    ) or "<tr><td>None</td></tr>"
+                    st.markdown(f"<p style='font-weight: 600; margin-bottom: 4px;'>{title}</p>"
+                                f"<table class='entity-table'>{word_rows}</table>", unsafe_allow_html=True)
+            with st.expander("Offer Text Coloured by SHAP Value", expanded=False):
+                st.markdown(
+                    "<p style='font-size: 13px;'>Red words push the text classifier towards scam, blue towards legitimate; "
+                    "hover a word for its SHAP value (log-odds of scam).</p>"
+                    f"<div class='evidence-content'>{highlight_html(res.get('offer_text', ''), cwords)}</div>",
+                    unsafe_allow_html=True,
+                )
 
         comb = vexp["combination"]
         with st.expander("How the Evidence Was Combined", expanded=False):

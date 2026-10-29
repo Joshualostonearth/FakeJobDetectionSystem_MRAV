@@ -1,5 +1,6 @@
 """Objective 5: explainability.py explains the pipeline's verdict from its own numbers."""
 
+import math
 import re
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -8,7 +9,8 @@ import explainability
 import pipeline_bridge
 from confidence_calibrator import calculate_confidence_score
 from explainability import (
-    explain_phone_verification, explain_verdict, is_grounded, overclaims, summarize_with_llm,
+    explain_classifier_words, explain_phone_verification, explain_verdict, highlight_html, is_grounded,
+    overclaims, summarize_with_llm,
 )
 from models import JobOfferEntities
 from obj2dst import combine_all
@@ -184,3 +186,56 @@ def test_llm_summary_is_retried_with_the_rejection_reason():
         assert summarize_with_llm(vexp) == "The offer is a high-risk scam."
     assert len(prompts) == 2
     assert "rejected: it used the words strongest" in prompts[1]
+
+
+SCAM_TEXT = ("Work From Home Data Entry job. Earn $5000 per week, no experience needed. "
+             "Pay a registration fee of $99 via Western Union. Contact amazonhr.jobs@gmail.com")
+
+
+def test_shap_shares_add_up_to_the_confidence():
+    masses = [{"REAL": 0.0, "FAKE": 0.3, "UNCERTAIN": 0.7, "source": "scam_report"} for _ in range(3)]
+    masses.append({"REAL": 0.3, "FAKE": 0.6, "UNCERTAIN": 0.1, "source": "text_classifier"})
+    shares = explainability._shapley_sources(masses)
+    total = calculate_confidence_score(combine_all(masses)) - calculate_confidence_score(combine_all([]))
+    assert abs(sum(shares) - total) < 1e-3
+    # Identical sources get the same share, and repeating each other does not hide them
+    assert shares[0] == shares[1] == shares[2] < -0.05
+
+
+def test_verdict_factors_carry_shap_values():
+    vexp = _analyze(0.99)["verdict_explanation"]
+    assert all("shap" in f for f in vexp["factors"])
+    total = sum(f["shap"] for f in vexp["factors"])
+    assert abs(total - (vexp["combination"]["calibrated_confidence"] - vexp["shap_base"])) < 1e-3
+
+
+def test_classifier_word_contributions_add_up_to_the_log_odds():
+    words = explain_classifier_words(SCAM_TEXT)
+    total = sum(w["contribution"] for w in words["words"])
+    assert abs(total - (words["log_odds"] - words["base_log_odds"])) < 1e-9
+    # The averaged linear model stays close to the calibrated probability
+    assert abs(1 / (1 + math.exp(-words["log_odds"])) - words["scam_probability"]) < 0.05
+    assert [w["text"] for w in words["words"]] == SCAM_TEXT.split()
+    assert all(w["contribution"] > 0 for w in words["top_scam_words"])
+    assert all(w["contribution"] < 0 for w in words["top_legit_words"])
+    assert explain_classifier_words("   ") is None
+
+
+def test_classifier_words_reach_the_facts():
+    words = explain_classifier_words(SCAM_TEXT)
+    top = ", ".join(w["word"] for w in words["top_scam_words"][:explainability.WORDS_IN_FACTS])
+    fact = f"Words in the offer that made the text classifier lean towards a scam: {top}."
+    with patch("credibility_engine.generate_alignment_triple", return_value=NEUTRAL), \
+         patch.object(pipeline_bridge, "predict_scam_probability", return_value=0.9):
+        res = pipeline_bridge.analyze_extracted_offer(
+            SCAM_TEXT, JobOfferEntities(company_name="Amazon", job_role="Data Entry"), _StubRetriever())
+    assert res["classifier_words"]["top_scam_words"] == words["top_scam_words"]
+    assert fact in res["verdict_explanation"]["facts"]
+    assert fact in res["verdict_explanation"]["llm_facts"]
+
+
+def test_highlight_html_escapes_the_offer_text():
+    text = "Earn <b>$5000</b> & more"
+    out = highlight_html(text, explain_classifier_words(text))
+    assert "<b>" not in out and "&lt;b&gt;" in out and "&amp;" in out
+    assert out.count("<span") == len(text.split())

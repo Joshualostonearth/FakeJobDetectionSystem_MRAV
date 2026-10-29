@@ -5,8 +5,16 @@ The explanation is built from the pipeline's own numbers, so every statement in 
 grounded in what the system actually computed:
 
     1. Evidence attribution — each DST evidence source (retrieved records, text classifier,
-       phone call) is scored by leave-one-out: the calibrated P(Real) recomputed with that
-       source removed. The difference is how far that source moved the confidence.
+       phone call) is scored two ways:
+         - leave-one-out: the calibrated P(Real) recomputed with that source removed; the
+           difference is how far that source moved the confidence;
+         - SHAP (exact Shapley values, shap.ExactExplainer): the source's fair share of the
+           move from "no evidence" to the actual confidence, averaged over every order of
+           adding sources, so sources that repeat each other share the credit and all
+           shares add up to the total.
+       The leave-one-out effect ranks the sources in the summaries.
+    1b. Text classifier words — SHAP (shap.LinearExplainer) splits the SVM's log-odds of
+       scam over its TF-IDF features, which are mapped back onto the words of the offer.
     2. Combination — the combined DST masses, the conflict factor K, the Platt calibration
        and the verdict band the confidence falls in.
     3. Overrides — any rule that replaced the calibrated confidence (critical flags,
@@ -17,14 +25,23 @@ Its output is rejected if it quotes a number that is not in the facts, and the c
 falls back to the deterministic summary.
 
 Public API:
-    explain_verdict(full_result, scam_probability=None, retrieved_evidence=None) -> dict
+    explain_verdict(full_result, scam_probability=None, retrieved_evidence=None,
+                    classifier_words=None) -> dict
+    explain_classifier_words(text) -> Optional[dict]
+    highlight_html(text, classifier_words) -> str
     explain_phone_verification(voice_result) -> dict
     summarize_with_llm(explanation, model=None) -> Optional[str]
 """
 
+import html
 import os
 import re
+from collections import defaultdict
 from typing import Any, Dict, List, Optional
+
+import numpy as np
+import scipy.sparse as sp
+import shap
 
 from obj2dst import combine_all
 from confidence_calibrator import (
@@ -46,6 +63,11 @@ MODERATE_EFFECT: float = 0.05
 
 # Longest flag text passed to the LLM
 MAX_LLM_FLAG_CHARS: int = 160
+
+# Words listed on each side (towards scam / towards legitimate) for the text classifier
+TOP_K_WORDS: int = 8
+# Of those, how many go into the facts and the LLM summary
+WORDS_IN_FACTS: int = 5
 
 VERDICT_LABELS = {
     "VERIFIED_REAL": "Verified Real",
@@ -156,18 +178,45 @@ def _attribute_sources(evidence_masses: List[Dict[str, Any]], base_confidence: f
     return effects
 
 
+def _shapley_sources(evidence_masses: List[Dict[str, Any]]) -> List[float]:
+    """
+    Exact Shapley value of each mass for the calibrated P(Real), before overrides.
+
+    The "features" are the sources themselves (1 = included, 0 = left out); the value of a
+    set of sources is calculate_confidence_score(combine_all(set)). With at most a handful
+    of sources, shap.ExactExplainer evaluates every subset.
+    """
+    if not evidence_masses:
+        return []
+
+    def confidence(included: np.ndarray) -> np.ndarray:
+        return np.array([
+            calculate_confidence_score(combine_all([m for m, keep in zip(evidence_masses, row) if keep]))
+            for row in included
+        ])
+
+    n = len(evidence_masses)
+    explainer = shap.ExactExplainer(confidence, shap.maskers.Independent(np.zeros((1, n))))
+    values = explainer(np.ones((1, n)), silent=True).values[0]
+    return [round(float(v), 4) for v in values]
+
+
 def explain_verdict(
     full_result: Dict[str, Any],
     scam_probability: Optional[float] = None,
     retrieved_evidence: Optional[List[Dict[str, Any]]] = None,
+    classifier_words: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Explains a run_full_pipeline() result.
+    Explains a run_full_pipeline() result. classifier_words, from explain_classifier_words(),
+    adds the words that drove the text classifier to the facts.
 
     Returns a dict with:
         verdict, verdict_label, confidence
         factors:     one per evidence source, strongest effect first, each with
-                     label, detail, mass_real, mass_fake, effect (signed change in P(Real))
+                     label, detail, mass_real, mass_fake, effect (leave-one-out change in
+                     P(Real)) and shap (Shapley share of P(Real) minus shap_base)
+        shap_base:   P(Real) with no evidence at all, where the SHAP shares start from
         flags:       CRITICAL / WARNING flags from Objective 2
         combination: DST masses, conflict, calibrated confidence before overrides, band
         override:    reason, if an override replaced the calibrated confidence
@@ -189,12 +238,14 @@ def explain_verdict(
     conflict = float(dst.get("conflict", 0.0))
 
     factors = []
-    for mass, effect in zip(evidence_masses, _attribute_sources(evidence_masses, calibrated)):
+    effects = _attribute_sources(evidence_masses, calibrated)
+    for mass, effect, shap_value in zip(evidence_masses, effects, _shapley_sources(evidence_masses)):
         factor = _describe_source(mass, docs, titles, scam_probability)
         factor.update({
             "mass_real": round(float(mass.get("REAL", 0.0)), 4),
             "mass_fake": round(float(mass.get("FAKE", 0.0)), 4),
             "effect": effect,
+            "shap": shap_value,
         })
         factors.append(factor)
     factors.sort(key=lambda f: abs(f["effect"]), reverse=True)
@@ -218,6 +269,8 @@ def explain_verdict(
                      + (f" ({f['detail']})." if f["detail"] else "."))
     if not any(abs(f["effect"]) >= NEGLIGIBLE_EFFECT for f in factors):
         facts.append("No single evidence source changed the confidence noticeably.")
+    word_facts = _word_facts(classifier_words)
+    facts.extend(word_facts)
     facts.append(f"Combined evidence: belief real {dst.get('REAL', 0.0):.2f}, belief fake "
                  f"{dst.get('FAKE', 0.0):.2f}, uncertain {dst.get('UNCERTAIN', 1.0):.2f}, "
                  f"conflict between sources {conflict:.2f}.")
@@ -250,6 +303,7 @@ def explain_verdict(
     else:
         llm_facts.append("Main reason: no single piece of evidence changed the result noticeably.")
     llm_facts.extend(f"Less important evidence: {e}" for e in evidence)
+    llm_facts.extend(word_facts)
     if conflict > HIGH_CONFLICT_THRESHOLD:
         llm_facts.append("The evidence sources disagree strongly with each other.")
     for short in dict.fromkeys(_short_flag(f) for f in flags):
@@ -277,10 +331,168 @@ def explain_verdict(
             "band": _verdict_band(confidence),
         },
         "override": override,
+        "shap_base": calculate_confidence_score(combine_all([])),
         "summary": _summary(verdict, confidence, factors, override),
         "facts": facts,
         "llm_facts": llm_facts,
     }
+
+
+def _word_facts(classifier_words: Optional[Dict[str, Any]]) -> List[str]:
+    """Facts naming the words that pushed the text classifier each way."""
+    if not classifier_words:
+        return []
+    facts = []
+    for key, direction in (("top_scam_words", "a scam"), ("top_legit_words", "a real offer")):
+        words = [w["word"] for w in classifier_words[key][:WORDS_IN_FACTS]]
+        if words:
+            facts.append(f"Words in the offer that made the text classifier lean towards {direction}: "
+                         f"{', '.join(words)}.")
+    return facts
+
+
+# ── Text classifier words (SHAP on the linear SVM) ─────────
+
+_linear_svm = None
+
+
+def _svm_as_linear_model(model):
+    """
+    The classifier as one linear model of the log-odds of scam: (weights, intercept).
+
+    The SVM is calibrated with a sigmoid per cross-validation fold, and each fold's log-odds
+    -a_k * (coef_k . x + intercept_k) - b_k is linear in the TF-IDF features x; the folds are
+    averaged. The model's P(scam) is the mean of the fold sigmoids, so it differs a little
+    from sigmoid of this averaged log-odds.
+    """
+    global _linear_svm
+    if _linear_svm is None or _linear_svm[0] is not model:
+        folds = model.steps[-1][1].calibrated_classifiers_
+        coef = np.mean([-f.calibrators[0].a_ * f.estimator.coef_.ravel() for f in folds], axis=0)
+        intercept = float(np.mean([-f.calibrators[0].a_ * f.estimator.intercept_[0] - f.calibrators[0].b_
+                                   for f in folds]))
+        _linear_svm = (model, coef, intercept)
+    return _linear_svm[1], _linear_svm[2]
+
+
+def _feature_occurrences(vectorizer, chunks: List[str]) -> Dict[int, List[tuple]]:
+    """
+    Where each of the vectorizer's features occurs in the text: feature index -> list of
+    occurrences, each a tuple of (chunk index, share of that occurrence).
+
+    char_wb n-grams are built inside each whitespace-separated chunk, so each occurrence
+    lies in one chunk; a word n-gram is split evenly between the chunks of its n words.
+    """
+    vocab = vectorizer.vocabulary_
+    occurrences = defaultdict(list)
+    if vectorizer.analyzer == "char_wb":
+        analyze = vectorizer.build_analyzer()
+        for i, chunk in enumerate(chunks):
+            for gram in analyze(chunk):
+                if gram in vocab:
+                    occurrences[vocab[gram]].append(((i, 1.0),))
+    else:
+        preprocess, tokenize = vectorizer.build_preprocessor(), vectorizer.build_tokenizer()
+        tokens = [(tok, i) for i, chunk in enumerate(chunks) for tok in tokenize(preprocess(chunk))]
+        lo, hi = vectorizer.ngram_range
+        for n in range(lo, hi + 1):
+            for t in range(len(tokens) - n + 1):
+                gram = " ".join(tok for tok, _ in tokens[t:t + n])
+                if gram in vocab:
+                    occurrences[vocab[gram]].append(tuple((i, 1.0 / n) for _, i in tokens[t:t + n]))
+    return occurrences
+
+
+def explain_classifier_words(text: str, top_k: int = TOP_K_WORDS) -> Optional[Dict[str, Any]]:
+    """
+    Which words of the offer pushed the text classifier towards scam or legitimate.
+
+    SHAP (shap.LinearExplainer, with an empty posting as the background) gives each TF-IDF
+    feature's contribution to the log-odds of scam; each feature's contribution is then
+    shared among the words it occurs in. The word contributions add up exactly to
+    log_odds - base_log_odds.
+
+    Returns None for empty text, or a dict with:
+        scam_probability: the model's P(scam)
+        base_log_odds:    log-odds of scam for an empty posting (SHAP's expected value)
+        log_odds:         base_log_odds plus all word contributions
+        words:            [{text, start, end, contribution}] for each whitespace-separated
+                          word of the text in order; contribution > 0 pushes towards scam
+        top_scam_words / top_legit_words: [{word, contribution, count}], the same word's
+                          occurrences summed (lowercase, punctuation stripped), strongest first
+    """
+    if not text or not text.strip():
+        return None
+    from scam_classifier import load_model
+
+    model = load_model()
+    coef, intercept = _svm_as_linear_model(model)
+    union = model.steps[0][1]
+    x = union.transform([text]).tocsr()
+
+    explainer = shap.LinearExplainer((coef, intercept), shap.maskers.Independent(sp.csr_matrix((1, x.shape[1]))))
+    shap_values = explainer(x)
+    feature_values = np.asarray(shap_values.values).ravel()
+    base = float(np.ravel(shap_values.base_values)[0])
+
+    # Whitespace-separated words with their character offsets in the original text
+    spans = [(m.start(), m.end()) for m in re.finditer(r"\S+", text)]
+    chunks = [text[s:e] for s, e in spans]
+    word_values = np.zeros(len(chunks))
+
+    offset = 0
+    for _, vectorizer in union.transformer_list:
+        occurrences = _feature_occurrences(vectorizer, chunks)
+        for j in x.indices[(x.indices >= offset) & (x.indices < offset + len(vectorizer.vocabulary_))]:
+            occ = occurrences.get(j - offset)
+            if not occ:
+                continue
+            for parts in occ:
+                for i, share in parts:
+                    word_values[i] += feature_values[j] * share / len(occ)
+        offset += len(vectorizer.vocabulary_)
+
+    words = [{"text": chunk, "start": s, "end": e, "contribution": float(c)}
+             for chunk, (s, e), c in zip(chunks, spans, word_values)]
+
+    totals = defaultdict(lambda: [0.0, 0])
+    for w in words:
+        word = re.sub(r"^\W+|\W+$", "", w["text"].lower())
+        if word and w["contribution"] != 0.0:
+            totals[word][0] += w["contribution"]
+            totals[word][1] += 1
+    ranked = sorted(({"word": word, "contribution": round(c, 4), "count": n} for word, (c, n) in totals.items()),
+                    key=lambda d: d["contribution"])
+
+    return {
+        "scam_probability": float(model.predict_proba([text])[0][1]),
+        "base_log_odds": base,
+        "log_odds": base + float(word_values.sum()),
+        "words": words,
+        "top_scam_words": [d for d in reversed(ranked) if d["contribution"] > 0][:top_k],
+        "top_legit_words": [d for d in ranked if d["contribution"] < 0][:top_k],
+    }
+
+
+def highlight_html(text: str, classifier_words: Dict[str, Any]) -> str:
+    """
+    The offer text as HTML, each word shaded by its SHAP contribution: red towards scam,
+    blue towards legitimate, stronger colour for a bigger contribution.
+    """
+    words = classifier_words["words"]
+    scale = max((abs(w["contribution"]) for w in words), default=0.0) or 1.0
+    out: List[str] = []
+    pos = 0
+    for w in words:
+        out.append(html.escape(text[pos:w["start"]]))
+        c = w["contribution"]
+        alpha = min(abs(c) / scale, 1.0) * 0.75
+        rgb = "214, 69, 65" if c > 0 else "50, 96, 128"
+        out.append(f'<span title="{c:+.3f}" style="background-color: rgba({rgb}, {alpha:.2f}); '
+                   f'border-radius: 2px;">{html.escape(w["text"])}</span>')
+        pos = w["end"]
+    out.append(html.escape(text[pos:]))
+    return "".join(out).replace("\n", "<br>")
 
 
 def _summary(verdict: str, confidence: float, factors: List[Dict[str, Any]], override: Optional[str]) -> str:

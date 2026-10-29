@@ -27,7 +27,7 @@ from ocr_engine import init_ocr_reader, extract_text_from_image, merge_text_and_
 from models import extract_entities_from_text, JobOfferEntities
 from search_engine import EvidenceRetriever
 from scam_classifier import predict_scam_probability
-from explainability import explain_verdict
+from explainability import explain_classifier_words, explain_verdict
 from engines.credibility_engine import OLLAMA_MODEL
 from full_pipeline_orchestrator import run_full_pipeline
 from voice_verification_bridge import check_voice_services, verify_offer_by_phone
@@ -329,8 +329,9 @@ def analyze_extracted_offer(
     fv = full_result["final_verification"]
     risk_level = VERDICT_TO_RISK_LEVEL.get(fv["final_verdict"], "MEDIUM RISK")
 
-    # 9b. Objective 5: how each evidence source moved the verdict
-    verdict_explanation = explain_verdict(full_result, scam_probability, retrieved_evidence)
+    # 9b. Objective 5: which words drove the text classifier, and how each evidence source moved the verdict
+    classifier_words = explain_classifier_words(merged_text) if scam_probability is not None else None
+    verdict_explanation = explain_verdict(full_result, scam_probability, retrieved_evidence, classifier_words)
 
     # 10. Assemble complete UI payload
     return {
@@ -344,6 +345,7 @@ def analyze_extracted_offer(
         "flags": _ui_flags(scam_probability, full_result),
         "explanation": verdict_explanation["summary"],
         "verdict_explanation": verdict_explanation,
+        "classifier_words": classifier_words,
         "extracted_entities": entities_dict,
         "offer_text": merged_text,
         "retrieved_evidence": retrieved_evidence,
