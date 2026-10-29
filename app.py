@@ -587,7 +587,8 @@ if res:
             llm_text = st.session_state.llm_summaries[offer_key]
             if llm_text:
                 body = html.escape(llm_text)
-                note = "Written by the local LLM from the facts above; numbers checked against them."
+                note = ("Written by the local LLM from the facts above; its numbers are checked against them. "
+                        "Standard summary: " + html.escape(vexp["summary"]))
             else:
                 body = html.escape(vexp["summary"])
                 note = "The local LLM was unavailable or its answer did not match the facts, so the standard summary is shown."

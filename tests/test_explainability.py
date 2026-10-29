@@ -1,5 +1,6 @@
 """Objective 5: explainability.py explains the pipeline's verdict from its own numbers."""
 
+import re
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -69,6 +70,8 @@ def test_grounding_check_rejects_invented_numbers():
     assert is_grounded("The offer looks real, with 82% confidence.", facts)
     assert is_grounded("The offer looks real (confidence 0.82).", facts)
     assert not is_grounded("The offer looks real, with 95% confidence.", facts)
+    # 99.7% must not pass as a rounded 1%
+    assert not is_grounded("This is a scam with 99.7% certainty.", ["Confidence that the offer is real: 1%."])
 
 
 def test_llm_summary_falls_back_when_ungrounded_or_unavailable():
@@ -105,3 +108,26 @@ def test_phone_explanation_lists_call_signals():
     assert any("belief fake 0.70" in f for f in pexp["facts"])
     assert explain_phone_verification({})["facts"] == [
         "The call produced no usable signals, so the verdict uses database evidence only."]
+
+
+def test_llm_facts_carry_only_the_confidence_number():
+    vexp = _analyze(0.99)["verdict_explanation"]
+    numbers = {n for fact in vexp["llm_facts"] for n in re.findall(r"\d+(?:\.\d+)?", fact)}
+    assert numbers == {f"{vexp['confidence'] * 100:.0f}"}
+    assert any("Text classifier strongly points to a scam" in f for f in vexp["llm_facts"])
+
+
+def test_flags_for_the_llm_drop_mrav_reasoning_and_doc_ids():
+    flag = ("WARNING: Offer contradicts EMSCAD legitimate baseline: Claimed Role: *Warehouse Associate*\n"
+            "   - Location: Houston vs Hong Kong ... (doc: ROW17808)")
+    assert explainability._short_flag(flag) == "WARNING: Offer contradicts EMSCAD legitimate baseline"
+    assert explainability._short_flag("WARNING: Similar known fraudulent listing (doc: ROW5507)") == \
+        "WARNING: Similar known fraudulent listing"
+    assert len(explainability._short_flag("WARNING: " + "word " * 100)) <= explainability.MAX_LLM_FLAG_CHARS + 1
+
+
+def test_llm_summary_markdown_is_stripped():
+    vexp = _analyze(0.99)["verdict_explanation"]
+    reply = SimpleNamespace(content="The offer is a **high-risk scam**.")
+    with patch("langchain_ollama.ChatOllama", lambda **kw: SimpleNamespace(invoke=lambda prompt: reply)):
+        assert summarize_with_llm(vexp) == "The offer is a high-risk scam."

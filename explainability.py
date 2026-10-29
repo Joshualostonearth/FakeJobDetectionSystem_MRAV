@@ -39,6 +39,13 @@ HIGH_CONFLICT_THRESHOLD: float = 0.4
 # Leave-one-out change in P(Real) below which a source is reported as having no real effect
 NEGLIGIBLE_EFFECT: float = 0.01
 
+# Leave-one-out change in P(Real) from which an effect is called strong / moderate in words
+STRONG_EFFECT: float = 0.20
+MODERATE_EFFECT: float = 0.05
+
+# Longest flag text passed to the LLM
+MAX_LLM_FLAG_CHARS: int = 160
+
 VERDICT_LABELS = {
     "VERIFIED_REAL": "Verified Real",
     "UNCERTAIN_NEEDS_VERIFICATION": "Uncertain, needs verification",
@@ -114,6 +121,29 @@ def _describe_source(mass: Dict[str, Any], docs: List[Dict[str, Any]], titles: D
     return {"source": source, "label": label, "detail": detail}
 
 
+def _effect_strength(effect: float) -> str:
+    """An effect on P(Real) in words, so the LLM is not handed numbers it can misrelate."""
+    size = abs(effect)
+    if size >= STRONG_EFFECT:
+        return "strongly"
+    if size >= MODERATE_EFFECT:
+        return "moderately"
+    return "slightly"
+
+
+def _short_flag(flag: str) -> str:
+    """
+    Flag text for the LLM: without doc ids and the M-RAV reasoning some flags carry
+    ("Offer contradicts EMSCAD legitimate baseline: <full explanation>"), cut to one line.
+    """
+    text = re.sub(r"\s*\(doc: [^)]*\)", "", flag)
+    text = re.sub(r"(Offer contradicts EMSCAD legitimate baseline):.*", r"\1", text, flags=re.S)
+    text = " ".join(text.split())
+    if len(text) > MAX_LLM_FLAG_CHARS:
+        text = text[:MAX_LLM_FLAG_CHARS].rsplit(" ", 1)[0] + "…"
+    return text
+
+
 def _attribute_sources(evidence_masses: List[Dict[str, Any]], base_confidence: float) -> List[float]:
     """Leave-one-out effect of each mass on the calibrated P(Real), before overrides."""
     effects = []
@@ -141,7 +171,9 @@ def explain_verdict(
         combination: DST masses, conflict, calibrated confidence before overrides, band
         override:    reason, if an override replaced the calibrated confidence
         summary:     one paragraph built from the above
-        facts:       the statements the summary and an LLM summary may draw on
+        facts:       the detailed statements behind the summary
+        llm_facts:   the same facts for the LLM summary: effects in words, short flags,
+                     the final confidence as the only number from the scoring
     """
     fv = full_result["final_verification"]
     dst = full_result["dst_combined_masses"]
@@ -166,9 +198,11 @@ def explain_verdict(
         factors.append(factor)
     factors.sort(key=lambda f: abs(f["effect"]), reverse=True)
 
-    flags = [f"{f['severity']}: {f['message']}"
-             for f in cred["credibility_evaluation"]["flags_triggered"]
-             if f["severity"] in ("CRITICAL", "WARNING")]
+    flags = list(dict.fromkeys(
+        f"{f['severity']}: {f['message']}"
+        for f in cred["credibility_evaluation"]["flags_triggered"]
+        if f["severity"] in ("CRITICAL", "WARNING")
+    ))
 
     override = fv.get("override_reason") if fv.get("override_applied") else None
 
@@ -197,6 +231,25 @@ def explain_verdict(
     if verdict == "UNCERTAIN_NEEDS_VERIFICATION":
         facts.append("The evidence is not enough to decide, so a phone verification call is needed.")
 
+    # ── LLM facts: the same story with effects in words and short flags ─────
+    # The only number is the final confidence, so the LLM cannot relate two numbers wrongly.
+    llm_facts = [f"Verdict: {VERDICT_LABELS.get(verdict, verdict)}. "
+                 f"Confidence that the offer is real: {confidence:.0%}."]
+    for f in factors:
+        if abs(f["effect"]) < NEGLIGIBLE_EFFECT:
+            continue
+        direction = "a real offer" if f["effect"] > 0 else "a scam"
+        llm_facts.append(f"{f['label']} {_effect_strength(f['effect'])} points to {direction}.")
+    if not any(abs(f["effect"]) >= NEGLIGIBLE_EFFECT for f in factors):
+        llm_facts.append("No single piece of evidence changed the result noticeably.")
+    if conflict > HIGH_CONFLICT_THRESHOLD:
+        llm_facts.append("The evidence sources disagree strongly with each other.")
+    llm_facts.extend(f"Warning raised: {short}" for short in dict.fromkeys(_short_flag(f) for f in flags))
+    if override:
+        llm_facts.append(f"A safety rule changed the result: {_short_flag(override)}")
+    if verdict == "UNCERTAIN_NEEDS_VERIFICATION":
+        llm_facts.append("The evidence is not enough to decide, so a phone verification call is needed.")
+
     return {
         "verdict": verdict,
         "verdict_label": VERDICT_LABELS.get(verdict, verdict),
@@ -215,6 +268,7 @@ def explain_verdict(
         "override": override,
         "summary": _summary(verdict, confidence, factors, override),
         "facts": facts,
+        "llm_facts": llm_facts,
     }
 
 
@@ -276,27 +330,32 @@ def explain_phone_verification(voice_result: Dict[str, Any]) -> Dict[str, Any]:
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
 
 
+# Rounding used to compare numbers; finer than 2 places so 99.7% does not pass as 1.00
+_PRECISION: int = 4
+
+
 def _numbers(text: str) -> set:
-    """Numbers in text, normalised so 0.50, .5 and 50% compare equal where they can."""
+    """Numbers in text, each also as a fraction, so 0.82 and 82% compare equal."""
     found = set()
     for n in _NUMBER.findall(text):
         value = float(n)
-        found.add(round(value, 2))
-        found.add(round(value / 100.0, 2))  # percentages
+        found.add(round(value, _PRECISION))
+        found.add(round(value / 100.0, _PRECISION))  # percentages
     return found
 
 
 def is_grounded(summary: str, facts: List[str]) -> bool:
     """True if every number the summary quotes appears in the facts."""
     allowed = _numbers(" ".join(facts))
-    return all(round(float(n), 2) in allowed or round(float(n) / 100.0, 2) in allowed
+    return all(round(float(n), _PRECISION) in allowed or round(float(n) / 100.0, _PRECISION) in allowed
                for n in _NUMBER.findall(summary))
 
 
 LLM_PROMPT = """You explain to a job seeker why a fake job detection system reached its verdict.
-Write 3 to 5 short sentences in plain language. Use ONLY the facts below. Do not add facts,
-advice or numbers that are not in the facts. Mention the verdict first, then the evidence
-that mattered most.
+Write 3 to 5 short sentences of plain text: no headings, lists, bold or other formatting.
+Use ONLY the facts below and do not add facts, advice or numbers. The only number you may
+use is the confidence percentage. Mention the verdict first, then the evidence that
+mattered most, in the order given.
 
 Facts:
 {facts}
@@ -306,12 +365,12 @@ Explanation:"""
 
 def summarize_with_llm(explanation: Dict[str, Any], model: Optional[str] = None) -> Optional[str]:
     """
-    Plain-language summary of explanation["facts"] from the local Ollama model.
+    Plain-language summary of explanation["llm_facts"] from the local Ollama model.
 
     Returns None if Ollama is unavailable or the summary quotes a number not in the facts;
     the caller should then show explanation["summary"] instead.
     """
-    facts = explanation.get("facts") or []
+    facts = explanation.get("llm_facts") or []
     if not facts:
         return None
     try:
@@ -321,6 +380,8 @@ def summarize_with_llm(explanation: Dict[str, Any], model: Optional[str] = None)
         llm = ChatOllama(model=model or OLLAMA_MODEL, temperature=0)
         reply = llm.invoke(LLM_PROMPT.format(facts="\n".join(f"- {f}" for f in facts)))
         text = (getattr(reply, "content", None) or str(reply)).strip()
+        # The app shows the summary as escaped text, so drop any Markdown emphasis
+        text = re.sub(r"[*#`]+", "", text).strip()
     except Exception as e:
         print(f"[Warning] LLM explanation unavailable: {e}")
         return None
