@@ -53,3 +53,6 @@ output.srt
 # Large archives (rebuild/unzip locally instead of committing)
 data.zip
 faiss_index.zip
+
+# Claude Code worktrees (separate git checkouts)
+.claude/worktrees/
