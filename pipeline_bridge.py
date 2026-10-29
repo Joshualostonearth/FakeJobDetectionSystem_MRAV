@@ -196,6 +196,15 @@ def handle_ui_submission(
     except Exception as e:
         raise RuntimeError(f"Entity extraction failed: {str(e)}")
 
+    # Without a company or a role there is no offer to verify; scoring the text anyway gives
+    # a confident verdict on, e.g., a photo of an event poster
+    if not (entities.company_name or "").strip() and not (entities.job_role or "").strip():
+        raise ValueError(
+            "No job offer was found in the input: neither a company name nor a job role could be "
+            "identified, so there is nothing to verify. Upload the offer letter or job posting, "
+            "or paste its text."
+        )
+
     result = analyze_extracted_offer(merged_text, entities, retriever)
     result["ocr_preview"] = ocr_preview
     return result

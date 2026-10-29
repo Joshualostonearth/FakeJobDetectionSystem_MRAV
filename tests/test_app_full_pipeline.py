@@ -40,3 +40,20 @@ def test_clean_text_is_low_risk():
     assert res["risk_level"] == "LOW RISK"
     assert res["voice_recommended"] is False
     assert 0 <= res["trust_score"] <= 100
+
+
+def test_input_without_company_or_role_is_not_scored():
+    """A photo of an event poster has no offer in it: stop instead of giving a verdict."""
+    import pytest
+
+    retriever = _StubRetriever()
+    retriever.vector_db = object()
+    with patch.object(pipeline_bridge, "check_ollama_service", return_value=True), \
+         patch.object(pipeline_bridge, "ollama_has_model", return_value=True), \
+         patch.object(pipeline_bridge, "extract_entities_from_text",
+                      return_value=JobOfferEntities(company_name="", job_role="")), \
+         patch.object(pipeline_bridge, "analyze_extracted_offer") as analyze:
+        with pytest.raises(ValueError, match="No job offer was found"):
+            pipeline_bridge.handle_ui_submission(None, "19 CC CC Security And Hacking Conference", reader=object(),
+                                                 retriever=retriever)
+    analyze.assert_not_called()
