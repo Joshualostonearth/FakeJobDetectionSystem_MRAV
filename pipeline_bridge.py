@@ -27,6 +27,7 @@ from ocr_engine import init_ocr_reader, extract_text_from_image, merge_text_and_
 from models import extract_entities_from_text, JobOfferEntities
 from search_engine import EvidenceRetriever
 from scam_classifier import predict_scam_probability
+from explainability import explain_verdict
 from engines.credibility_engine import OLLAMA_MODEL
 from full_pipeline_orchestrator import run_full_pipeline
 from voice_verification_bridge import check_voice_services, verify_offer_by_phone
@@ -286,28 +287,6 @@ def _ui_flags(scam_probability: Optional[float], full_result: Dict[str, Any]) ->
     return list(dict.fromkeys(flags))
 
 
-def _ui_explanation(scam_probability: Optional[float], full_result: Dict[str, Any]) -> str:
-    """One-paragraph summary of how the final verdict was reached."""
-    fv = full_result["final_verification"]
-    dst = full_result["dst_combined_masses"]
-    cred = full_result["obj2_credibility"]
-    parts = [
-        f"Final verdict: {fv['final_verdict'].replace('_', ' ')} "
-        f"(calibrated confidence the offer is real: {fv['calibrated_confidence']:.0%}).",
-    ]
-    if scam_probability is not None:
-        parts.append(f"Text classifier P(scam) = {scam_probability:.2f}.")
-    parts.append(
-        f"Evidence: {len(cred['evaluated_evidence'])} retrieved record(s) kept, "
-        f"{len(cred['discarded_evidence'])} discarded; combined belief REAL {dst.get('REAL', 0.0):.2f}, "
-        f"FAKE {dst.get('FAKE', 0.0):.2f}, uncertain {dst.get('UNCERTAIN', 1.0):.2f} "
-        f"(conflict K = {dst.get('conflict', 0.0):.2f})."
-    )
-    if fv.get("override_reason"):
-        parts.append(fv["override_reason"])
-    return " ".join(parts)
-
-
 def analyze_extracted_offer(
     merged_text: str,
     entities: JobOfferEntities,
@@ -341,6 +320,9 @@ def analyze_extracted_offer(
     fv = full_result["final_verification"]
     risk_level = VERDICT_TO_RISK_LEVEL.get(fv["final_verdict"], "MEDIUM RISK")
 
+    # 9b. Objective 5: how each evidence source moved the verdict
+    verdict_explanation = explain_verdict(full_result, scam_probability, retrieved_evidence)
+
     # 10. Assemble complete UI payload
     return {
         "offer_id": offer_id,
@@ -351,7 +333,8 @@ def analyze_extracted_offer(
         "voice_recommended": risk_level in VOICE_VERIFICATION_RISK_LEVELS,
         "auto_call": risk_level in AUTO_CALL_RISK_LEVELS,
         "flags": _ui_flags(scam_probability, full_result),
-        "explanation": _ui_explanation(scam_probability, full_result),
+        "explanation": verdict_explanation["summary"],
+        "verdict_explanation": verdict_explanation,
         "extracted_entities": entities_dict,
         "offer_text": merged_text,
         "retrieved_evidence": retrieved_evidence,

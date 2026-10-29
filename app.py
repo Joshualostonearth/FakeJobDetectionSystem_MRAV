@@ -27,6 +27,7 @@ import streamlit as st
 from pipeline_bridge import handle_ui_submission, handle_phone_verification
 from ocr_engine import init_ocr_reader
 from search_engine import EvidenceRetriever
+from explainability import explain_phone_verification, summarize_with_llm
 
 # 1. Page Configuration
 st.set_page_config(
@@ -361,6 +362,10 @@ if "voice_error" not in st.session_state:
 if "auto_call_pending" not in st.session_state:
     st.session_state.auto_call_pending = False
 
+# offer_id -> LLM summary (None = Ollama unavailable or summary rejected)
+if "llm_summaries" not in st.session_state:
+    st.session_state.llm_summaries = {}
+
 
 # 5. Header Component
 st.markdown(
@@ -414,6 +419,7 @@ if reset_clicked:
     st.session_state.voice_result = None
     st.session_state.voice_error = None
     st.session_state.auto_call_pending = False
+    st.session_state.llm_summaries = {}
     st.rerun()
 
 
@@ -536,6 +542,66 @@ if res:
             )
 
     st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+    # Objective 5: how each evidence source moved the verdict
+    vexp = res.get("verdict_explanation")
+    if vexp:
+        st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Why This Verdict</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 13px; margin-bottom: 8px;'>Effect = how much the confidence that the offer is real "
+            "changes when that source is left out (before any override). Positive points to a real offer, negative to a scam.</p>",
+            unsafe_allow_html=True,
+        )
+        rows = "".join(
+            f"<tr><th>{html.escape(f['label'])}</th>"
+            f"<td style='color: {'#326080' if f['effect'] >= 0 else '#A33A2B'}; font-weight: 700;'>{f['effect'] * 100:+.0f} pts</td>"
+            f"<td>{html.escape(f['detail'])}</td></tr>"
+            for f in vexp["factors"]
+        ) or "<tr><td>No evidence sources were combined.</td></tr>"
+        st.markdown(f"<table class='entity-table'>{rows}</table>", unsafe_allow_html=True)
+
+        comb = vexp["combination"]
+        with st.expander("How the Evidence Was Combined", expanded=False):
+            st.markdown(
+                f"""
+                <table class="entity-table">
+                    <tr><th>Combined belief: Real</th><td>{comb['real']:.2f}</td></tr>
+                    <tr><th>Combined belief: Fake</th><td>{comb['fake']:.2f}</td></tr>
+                    <tr><th>Uncertain</th><td>{comb['uncertain']:.2f}</td></tr>
+                    <tr><th>Conflict between sources (K)</th><td>{comb['conflict']:.2f}{' (high, confidence pulled towards 0.50)' if comb['high_conflict'] else ''}</td></tr>
+                    <tr><th>Calibrated confidence (Platt)</th><td>{comb['calibrated_confidence']:.2f}</td></tr>
+                    <tr><th>Override</th><td>{html.escape(vexp['override'] or 'None')}</td></tr>
+                    <tr><th>Final confidence</th><td>{vexp['confidence']:.2f}, {html.escape(comb['band'])}</td></tr>
+                </table>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        offer_key = res.get("offer_id")
+        if offer_key not in st.session_state.llm_summaries:
+            if st.button("Explain in Plain Language (local LLM)", use_container_width=True):
+                with st.spinner("Writing a plain-language explanation..."):
+                    st.session_state.llm_summaries[offer_key] = summarize_with_llm(vexp)
+                st.rerun()
+        else:
+            llm_text = st.session_state.llm_summaries[offer_key]
+            if llm_text:
+                body = html.escape(llm_text)
+                note = "Written by the local LLM from the facts above; numbers checked against them."
+            else:
+                body = html.escape(vexp["summary"])
+                note = "The local LLM was unavailable or its answer did not match the facts, so the standard summary is shown."
+            st.markdown(
+                f"""
+                <div style="background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 14px;">
+                    <p style="margin: 0 0 6px 0; line-height: 1.5; font-size: 14px;">{body}</p>
+                    <p style="margin: 0; font-size: 12px; color: #805232;">{note}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
     # Extracted Entities Section
     st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Extracted Job Offer Entities</p>", unsafe_allow_html=True)
@@ -666,6 +732,11 @@ if res:
                 """,
                 unsafe_allow_html=True,
             )
+
+        # Objective 5: what the call contributed to the combined verdict
+        with st.expander("How the Call Changed the Verdict", expanded=False):
+            pexp = explain_phone_verification(vres)
+            st.markdown("".join(f"<div class='flag-item'>{html.escape(f)}</div>" for f in pexp["facts"]), unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 

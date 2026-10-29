@@ -55,13 +55,13 @@ def run_full_pipeline(
     dst_engine = DSTEngine()
     evidence_masses = []
 
-    for doc in retained_docs:
+    for doc_index, doc in enumerate(retained_docs):
         is_scam = 1 if (doc.source_type == "scam_report" or getattr(doc, "fraudulent", 0) == 1) else 0
         if not is_scam and doc.mrav_triple.hypothesis == "Contradicts":
             # A legitimate record that the offer contradicts describes some other posting;
             # it is no support for this offer being real, so it contributes only ignorance.
             evidence_masses.append({"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0,
-                                    "source": doc.source_type, "strength": 0.0})
+                                    "source": doc.source_type, "strength": 0.0, "doc_index": doc_index})
             continue
         mass = dst_engine.assign_mass_function(
             similarity_score=doc.credibility_index,
@@ -69,6 +69,8 @@ def run_full_pipeline(
             is_fraudulent=is_scam,
             metadata_quality=doc.authority,
         )
+        # Which retained document the mass came from, for the Objective 5 explanation
+        mass["doc_index"] = doc_index
         evidence_masses.append(mass)
 
     # ── Step 3b: Objective 1b — Supervised text classifier evidence ─────
@@ -131,6 +133,7 @@ def run_full_pipeline(
         "offer_id": payload.offer_id,
         "scam_probability": scam_probability,
         "obj2_credibility": credibility_output.model_dump(mode="json"),
+        "evidence_masses": evidence_masses,
         "dst_combined_masses": combined_dst,
         "final_verification": final_verdict_payload,
     }
