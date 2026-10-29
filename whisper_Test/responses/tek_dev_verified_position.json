@@ -1,0 +1,145 @@
+{
+  "meta": {
+    "company": "Tek Dev",
+    "job": "Verified Position",
+    "caller_type": "automated AI assistant (WebRTC)",
+    "created_at": "2026-10-15T16:30:16.788833+00:00",
+    "completed_at": "2026-10-15T16:35:45.095117+00:00"
+  },
+  "responses": [
+    {
+      "id": 1,
+      "question": "Hello, this is an automated assistant calling on behalf of a candidate who received a job offer from Tek Dev—could you confirm if this is the correct company?",
+      "purpose": "verify caller’s intent and company identity",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Yes, this is Tek Dev’s office.",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-10-15T16:30:41.100079+00:00",
+      "answered_at": null
+    },
+    {
+      "id": 2,
+      "question": "Could you please share the official website for Tek Dev?",
+      "purpose": "confirm company registration legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R2"
+      ],
+      "legit_answer_hint": "Provide a real domain (e.g., tekdev.com).",
+      "answer": "on htbsgurtec.com",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:31:19.594632+00:00",
+      "answered_at": "2026-10-15T16:31:19.594701+00:00"
+    },
+    {
+      "id": 3,
+      "question": "Where is the main office location for Tek Dev?",
+      "purpose": "verify physical address legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R2"
+      ],
+      "legit_answer_hint": "Give a real city/state/country.",
+      "answer": "It's located in Hyderabad.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:31:49.219981+00:00",
+      "answered_at": "2026-10-15T16:31:49.220024+00:00"
+    },
+    {
+      "id": 4,
+      "question": "What is the exact job title for this position?",
+      "purpose": "check if role details match offer",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Say ‘Verified Position’ or similar.",
+      "answer": "um data and the story.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:32:20.904250+00:00",
+      "answered_at": "2026-10-15T16:32:20.904288+00:00"
+    },
+    {
+      "id": 5,
+      "question": "Could you describe the primary responsibilities of this role?",
+      "purpose": "confirm if duties align with offer",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Mention key tasks (e.g., software testing).",
+      "answer": "Basically, you're supposed to handle data cleaning, data manipulation, working on ETA files, et cetera, et cetera.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:33:06.908810+00:00",
+      "answered_at": "2026-10-15T16:33:06.908891+00:00"
+    },
+    {
+      "id": 6,
+      "question": "When was the candidate expected to start this position?",
+      "purpose": "validate start date consistency",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Provide a clear date (e.g., ‘next month’).",
+      "answer": "As soon as possible possibly next week onwards",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:33:37.776059+00:00",
+      "answered_at": "2026-10-15T16:33:37.776093+00:00"
+    },
+    {
+      "id": 7,
+      "question": "Did the candidate complete an interview before receiving this offer?",
+      "purpose": "check if selection process was followed",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Yes, they interviewed via [method].",
+      "answer": "Not yet, but we do look forward to having one Thank you very much for your time.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:34:12.346235+00:00",
+      "answered_at": "2026-10-15T16:34:12.346318+00:00"
+    },
+    {
+      "id": 8,
+      "question": "Were any fees or payments requested from the candidate?",
+      "purpose": "detect unauthorized charges",
+      "targets_reason_ids": [
+        "R1",
+        "R2"
+      ],
+      "legit_answer_hint": "No, no fees were asked.",
+      "answer": "No, not at all. all.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:34:43.976496+00:00",
+      "answered_at": "2026-10-15T16:34:43.976527+00:00"
+    },
+    {
+      "id": 9,
+      "question": "Was the offer sent via an official email from Tek Dev?",
+      "purpose": "verify communication channel legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R2"
+      ],
+      "legit_answer_hint": "Yes, from sales@tekdev.com or similar.",
+      "answer": "Yes, it was.",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:35:12.252829+00:00",
+      "answered_at": "2026-10-15T16:35:12.252861+00:00"
+    },
+    {
+      "id": 10,
+      "question": "Could you provide the best contact method for next steps?",
+      "purpose": "redirect to official channel",
+      "targets_reason_ids": [
+        "R2"
+      ],
+      "legit_answer_hint": "Give a verified email/phone (e.g., hr@tekdev.com).",
+      "answer": "You can use geotech at gmail.com",
+      "status": "answered",
+      "asked_at": "2026-10-15T16:35:45.094665+00:00",
+      "answered_at": "2026-10-15T16:35:45.094706+00:00"
+    }
+  ]
+}

@@ -6,6 +6,7 @@ Pipeline Flow:
     2. Objective 2: Credibility Filtration Layer (evaluate_credibility)
     3. Objective 3: Voice Verification & Voice-to-Mass conversion (voice_transcript_to_mass)
     4. Objective 4: DST Evidence Mass Combination (combine_all) + Platt Scaling Calibration (calculate_confidence_score) + Final Override Verification (apply_verification_override)
+    5. Objective 5: Grounded LLM explanation of the verdict (explain_confidence_result), when explain=True
 """
 
 from typing import Dict, Any, Optional
@@ -15,6 +16,7 @@ from credibility_engine import evaluate_credibility
 from obj2dst import DSTEngine, combine_all
 from confidence_calibrator import calculate_confidence_score, apply_verification_override
 from objective3_voice_agent.voice_to_mass import voice_transcript_to_mass, voice_result_to_analysis
+from objective5_explanation import explain_confidence_result
 
 
 # How much the text classifier is trusted as a DST source (rest of its mass is ignorance)
@@ -26,6 +28,7 @@ def run_full_pipeline(
     voice_analysis_override: Optional[Dict[str, Any]] = None,
     offer_text: Optional[str] = None,
     scam_probability: Optional[float] = None,
+    explain: bool = False,
 ) -> Dict[str, Any]:
     """
     Executes the end-to-end multi-objective Fake Job Detection & Verification pipeline.
@@ -35,6 +38,7 @@ def run_full_pipeline(
         voice_analysis_override: Optional voice analysis dict to simulate or incorporate Objective 3 voice results
         offer_text: Optional raw offer text; scored by the supervised text classifier (scam_classifier.py)
         scam_probability: Optional precomputed classifier P(scam); takes precedence over offer_text
+        explain: When True, runs Objective 5 and adds an "explanation" report to the result.
 
     Returns:
         Complete unified report dictionary with overall verdict, calibrated confidence score, DST masses, and flags.
@@ -57,6 +61,12 @@ def run_full_pipeline(
 
     for doc in retained_docs:
         is_scam = 1 if (doc.source_type == "scam_report" or getattr(doc, "fraudulent", 0) == 1) else 0
+        if not is_scam and doc.mrav_triple.hypothesis == "Contradicts":
+            # A legitimate record that the offer contradicts describes some other posting;
+            # it is no support for this offer being real, so it contributes only ignorance.
+            evidence_masses.append({"REAL": 0.0, "FAKE": 0.0, "UNCERTAIN": 1.0,
+                                    "source": doc.source_type, "strength": 0.0})
+            continue
         mass = dst_engine.assign_mass_function(
             similarity_score=doc.credibility_index,
             source_type=doc.source_type,
@@ -106,6 +116,8 @@ def run_full_pipeline(
         dst_result=combined_dst,
         flags=flags,
         voice_signals=voice_analysis_override,
+        alignment_hypotheses=[d.mrav_triple.hypothesis for d in retained_docs
+                              if d.mrav_triple.explanation != "NOT_RUN"],
     )
 
     print("\n" + "=" * 70)
@@ -119,13 +131,25 @@ def run_full_pipeline(
         print(f"OVERRIDE APPLIED     : YES -> {final_verdict_payload['override_reason']}")
     print("=" * 70)
 
-    return {
+    result = {
         "offer_id": payload.offer_id,
         "scam_probability": scam_probability,
         "obj2_credibility": credibility_output.model_dump(mode="json"),
+        "voice_verification": {"status": "COMPLETED" if voice_mass else "SKIPPED", "voice_mass": voice_mass},
         "dst_combined_masses": combined_dst,
         "final_verification": final_verdict_payload,
     }
+
+    # ── Step 8: Objective 5 — Grounded Explanation of the Verdict ─────
+    if explain:
+        report = explain_confidence_result(
+            result,
+            entities=payload.extracted_entities.model_dump(),
+        )
+        print("\n" + report.to_text())
+        result["explanation"] = report.model_dump(mode="json")
+
+    return result
 
 
 if __name__ == "__main__":
@@ -142,4 +166,4 @@ if __name__ == "__main__":
         "extraction_confidence": 0.85,
     }
 
-    run_full_pipeline(demo, simulated_voice_result)
+    run_full_pipeline(demo, simulated_voice_result, explain=True)

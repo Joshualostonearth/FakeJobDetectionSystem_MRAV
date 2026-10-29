@@ -1,0 +1,140 @@
+{
+  "meta": {
+    "company": "GAO Tek Inc.",
+    "job": "Tech Support",
+    "caller_type": "automated AI assistant (WebRTC)",
+    "created_at": "2026-10-15T15:55:28.794855+00:00"
+  },
+  "responses": [
+    {
+      "id": 1,
+      "question": "Hello, I’m an automated assistant calling on behalf of a candidate who received an offer from GAO Tek Inc.",
+      "purpose": "verify caller’s company legitimacy",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Yes, we’re GAO Tek Inc.",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 2,
+      "question": "Could you confirm the official website for GAO Tek Inc.?",
+      "purpose": "confirm company’s registered domain",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Provide a verified .com or .org URL",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 3,
+      "question": "Where is the main office of GAO Tek Inc. located?",
+      "purpose": "verify physical address legitimacy",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Include city and country",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 4,
+      "question": "What is the exact job title for this position?",
+      "purpose": "match role description consistency",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Specify ‘Tech Support’ or similar",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 5,
+      "question": "What was the candidate’s expected start date for this job?",
+      "purpose": "check for unrealistic deadlines",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Provide a reasonable date",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 6,
+      "question": "Did the candidate interview before receiving this offer?",
+      "purpose": "verify formal selection process",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Yes, with a recruiter or manager",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 7,
+      "question": "Was the candidate asked to pay any fees for this job?",
+      "purpose": "detect upfront payment requests",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "No, no fees were required",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 8,
+      "question": "How was the candidate’s salary or compensation structured?",
+      "purpose": "confirm paid duties vs. unpaid tasks",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Hourly, monthly salary, or stipend",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 9,
+      "question": "How did the candidate receive their official offer letter?",
+      "purpose": "confirm formal communication channel",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Via email from a company address",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    },
+    {
+      "id": 10,
+      "question": "Could you provide the best way to follow up for official documents?",
+      "purpose": "direct to verified communication",
+      "targets_reason_ids": [
+        "R1"
+      ],
+      "legit_answer_hint": "Email, phone number, or office address",
+      "answer": null,
+      "status": "pending",
+      "asked_at": null,
+      "answered_at": null
+    }
+  ]
+}

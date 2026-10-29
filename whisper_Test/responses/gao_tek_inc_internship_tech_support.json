@@ -1,0 +1,151 @@
+{
+  "meta": {
+    "company": "GAO Tek Inc",
+    "job": "Internship (Tech Support)",
+    "caller_type": "automated AI assistant (WebRTC)",
+    "created_at": "2026-10-16T05:30:28.488598+00:00",
+    "completed_at": "2026-10-16T05:40:53.435965+00:00"
+  },
+  "responses": [
+    {
+      "id": 1,
+      "question": "Hello, I’m an automated assistant calling on behalf of a candidate who received an internship offer from your company—could you please confirm this is GAO Tek Inc?",
+      "purpose": "verify caller intent and company identity",
+      "targets_reason_ids": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "legit_answer_hint": "Yes, we’re GAO Tek Inc.",
+      "answer": "Yes, it is.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:34:41.296370+00:00",
+      "answered_at": "2026-10-16T05:35:29.296560+00:00"
+    },
+    {
+      "id": 2,
+      "question": "Could you confirm the official website for your company?",
+      "purpose": "verify company domain legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R3"
+      ],
+      "legit_answer_hint": "gaotek.com",
+      "answer": "That's the end of this video. Thanks for watching. here at the dot com.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:36:11.451015+00:00",
+      "answered_at": "2026-10-16T05:36:11.451084+00:00"
+    },
+    {
+      "id": 3,
+      "question": "Where is the main office location for GAO Tek Inc?",
+      "purpose": "verify company registration/location",
+      "targets_reason_ids": [
+        "R2",
+        "R3"
+      ],
+      "legit_answer_hint": "Provide physical address.",
+      "answer": null,
+      "status": "no_answer",
+      "asked_at": "2026-10-16T05:36:45.154498+00:00",
+      "answered_at": null
+    },
+    {
+      "id": 4,
+      "question": "What is the exact job title of this internship offer?",
+      "purpose": "verify role alignment with candidate’s claim",
+      "targets_reason_ids": [
+        "R1",
+        "R6"
+      ],
+      "legit_answer_hint": "Tech Support Internship",
+      "answer": "The exact job title is data.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:37:25.009906+00:00",
+      "answered_at": "2026-10-16T05:37:25.009939+00:00"
+    },
+    {
+      "id": 5,
+      "question": "Could you describe the primary responsibilities for this internship?",
+      "purpose": "verify role details vs. claimed offer",
+      "targets_reason_ids": [
+        "R1",
+        "R3"
+      ],
+      "legit_answer_hint": "Tech support tasks, training.",
+      "answer": "Primary responsibilities would include data mining, data cleaning, data extraction, etc. etc.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:38:03.037164+00:00",
+      "answered_at": "2026-10-16T05:38:03.037282+00:00"
+    },
+    {
+      "id": 6,
+      "question": "When is the start date for this internship?",
+      "purpose": "verify timeline consistency",
+      "targets_reason_ids": [
+        "R1",
+        "R3"
+      ],
+      "legit_answer_hint": "Specify a clear date.",
+      "answer": "The date is October 27th.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:38:34.563929+00:00",
+      "answered_at": "2026-10-16T05:38:34.563969+00:00"
+    },
+    {
+      "id": 7,
+      "question": "Did the candidate complete an interview before receiving this offer?",
+      "purpose": "verify selection process legitimacy",
+      "targets_reason_ids": [
+        "R4",
+        "R5"
+      ],
+      "legit_answer_hint": "Yes, they interviewed.",
+      "answer": "No, not at all.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:39:08.798405+00:00",
+      "answered_at": "2026-10-16T05:39:08.798436+00:00"
+    },
+    {
+      "id": 8,
+      "question": "Were any fees or payments requested by the candidate for this internship?",
+      "purpose": "verify payment/fee legitimacy",
+      "targets_reason_ids": [
+        "R4",
+        "R5"
+      ],
+      "legit_answer_hint": "No fees were required.",
+      "answer": "Uh, no, not really.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:39:41.147028+00:00",
+      "answered_at": "2026-10-16T05:39:41.147065+00:00"
+    },
+    {
+      "id": 9,
+      "question": "What email address was used to send the official offer letter?",
+      "purpose": "verify communication legitimacy",
+      "targets_reason_ids": [
+        "R1",
+        "R3"
+      ],
+      "legit_answer_hint": "hr@gaotek.com",
+      "answer": "biotech at gmail.com",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:40:19.779732+00:00",
+      "answered_at": "2026-10-16T05:40:19.779772+00:00"
+    },
+    {
+      "id": 10,
+      "question": "Could you provide the best contact method for the candidate to follow up or receive next steps?",
+      "purpose": "confirm official communication channel",
+      "targets_reason_ids": [
+        "R6"
+      ],
+      "legit_answer_hint": "HR email/phone extension.",
+      "answer": "the same exact number or you can use a Gmail account.",
+      "status": "answered",
+      "asked_at": "2026-10-16T05:40:53.435501+00:00",
+      "answered_at": "2026-10-16T05:40:53.435541+00:00"
+    }
+  ]
+}
