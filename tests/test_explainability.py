@@ -7,7 +7,9 @@ from unittest.mock import patch
 import explainability
 import pipeline_bridge
 from confidence_calibrator import calculate_confidence_score
-from explainability import explain_phone_verification, explain_verdict, is_grounded, summarize_with_llm
+from explainability import (
+    explain_phone_verification, explain_verdict, is_grounded, overclaims, summarize_with_llm,
+)
 from models import JobOfferEntities
 from obj2dst import combine_all
 from tests.test_app_full_pipeline import NEUTRAL, _StubRetriever
@@ -131,3 +133,54 @@ def test_llm_summary_markdown_is_stripped():
     reply = SimpleNamespace(content="The offer is a **high-risk scam**.")
     with patch("langchain_ollama.ChatOllama", lambda **kw: SimpleNamespace(invoke=lambda prompt: reply)):
         assert summarize_with_llm(vexp) == "The offer is a high-risk scam."
+
+
+def test_llm_facts_name_the_main_reason_first():
+    scam = _analyze(0.99)["verdict_explanation"]["llm_facts"]
+    assert scam[1] == "Main reason: Text classifier strongly points to a scam."
+    assert all(not f.startswith("Main reason") for f in scam[2:])
+
+    masses = [{"REAL": 0.9, "FAKE": 0.0, "UNCERTAIN": 0.1, "source": "text_classifier"}]
+    full_result = {
+        "obj2_credibility": {"evaluated_evidence": [], "credibility_evaluation": {"flags_triggered": [
+            {"severity": "WARNING", "message": "Recruiter email uses public/free domain (x@gmail.com)"}]}},
+        "evidence_masses": masses,
+        "dst_combined_masses": combine_all(masses),
+        "final_verification": {"final_verdict": "UNCERTAIN_NEEDS_VERIFICATION", "calibrated_confidence": 0.65,
+                               "override_applied": True, "override_reason": "UNVERIFIED OVERRIDE: none confirm it"},
+    }
+    facts = explain_verdict(full_result, scam_probability=0.0)["llm_facts"]
+    # The override set the result, so it is the main reason and the classifier is ranked below it
+    assert facts[1] == "Main reason: a safety rule changed the result: UNVERIFIED OVERRIDE: none confirm it"
+    assert facts[2].startswith("Less important evidence: Text classifier")
+    assert "Warning noted, it did not change the score: Recruiter email uses public/free domain (x@gmail.com)" in facts
+
+
+def test_overclaims_finds_strength_words_not_in_the_facts():
+    facts = ["Main reason: Text classifier strongly points to a scam.", "Similar fraudulent listing found."]
+    assert overclaims("The main reason is the text classifier, which is a strong signal.", facts) == []
+    assert overclaims("The strongest red flag was a nearly identical listing.", facts) == ["identical", "strongest"]
+
+
+def test_llm_summary_rejected_when_it_overclaims_or_omits_the_verdict():
+    vexp = _analyze(0.99)["verdict_explanation"]
+    for reply_text in ("This is a scam; the listing is identical to a known fraud.",  # overclaims
+                       "The wording of the offer looks suspicious."):                  # no verdict
+        reply = SimpleNamespace(content=reply_text)
+        with patch("langchain_ollama.ChatOllama", lambda **kw: SimpleNamespace(invoke=lambda prompt: reply)):
+            assert summarize_with_llm(vexp) is None
+
+
+def test_llm_summary_is_retried_with_the_rejection_reason():
+    vexp = _analyze(0.99)["verdict_explanation"]
+    replies = iter(["The strongest sign is a scam pattern.", "The offer is a high-risk scam."])
+    prompts = []
+
+    def invoke(prompt):
+        prompts.append(prompt)
+        return SimpleNamespace(content=next(replies))
+
+    with patch("langchain_ollama.ChatOllama", lambda **kw: SimpleNamespace(invoke=invoke)):
+        assert summarize_with_llm(vexp) == "The offer is a high-risk scam."
+    assert len(prompts) == 2
+    assert "rejected: it used the words strongest" in prompts[1]

@@ -231,22 +231,32 @@ def explain_verdict(
     if verdict == "UNCERTAIN_NEEDS_VERIFICATION":
         facts.append("The evidence is not enough to decide, so a phone verification call is needed.")
 
-    # ── LLM facts: the same story with effects in words and short flags ─────
-    # The only number is the final confidence, so the LLM cannot relate two numbers wrongly.
+    # ── LLM facts: the same story ranked, with effects in words and short flags ─────
+    # The only number is the final confidence, so the LLM cannot relate two numbers wrongly,
+    # and the main reason is named so it does not pick its own.
     llm_facts = [f"Verdict: {VERDICT_LABELS.get(verdict, verdict)}. "
                  f"Confidence that the offer is real: {confidence:.0%}."]
+    evidence = []
     for f in factors:
-        if abs(f["effect"]) < NEGLIGIBLE_EFFECT:
-            continue
-        direction = "a real offer" if f["effect"] > 0 else "a scam"
-        llm_facts.append(f"{f['label']} {_effect_strength(f['effect'])} points to {direction}.")
-    if not any(abs(f["effect"]) >= NEGLIGIBLE_EFFECT for f in factors):
-        llm_facts.append("No single piece of evidence changed the result noticeably.")
+        if abs(f["effect"]) >= NEGLIGIBLE_EFFECT:
+            direction = "a real offer" if f["effect"] > 0 else "a scam"
+            evidence.append(f"{f['label']} {_effect_strength(f['effect'])} points to {direction}.")
+    if override:
+        # The override set the confidence, so it decided the result over the evidence
+        llm_facts.append(f"Main reason: a safety rule changed the result: {_short_flag(override)}")
+    elif evidence:
+        llm_facts.append(f"Main reason: {evidence.pop(0)}")
+    else:
+        llm_facts.append("Main reason: no single piece of evidence changed the result noticeably.")
+    llm_facts.extend(f"Less important evidence: {e}" for e in evidence)
     if conflict > HIGH_CONFLICT_THRESHOLD:
         llm_facts.append("The evidence sources disagree strongly with each other.")
-    llm_facts.extend(f"Warning raised: {short}" for short in dict.fromkeys(_short_flag(f) for f in flags))
-    if override:
-        llm_facts.append(f"A safety rule changed the result: {_short_flag(override)}")
+    for short in dict.fromkeys(_short_flag(f) for f in flags):
+        # Only CRITICAL flags affect the result, through the override above
+        if short.startswith("WARNING"):
+            llm_facts.append(f"Warning noted, it did not change the score: {short.removeprefix('WARNING: ')}")
+        else:
+            llm_facts.append(f"Critical warning: {short.removeprefix('CRITICAL: ')}")
     if verdict == "UNCERTAIN_NEEDS_VERIFICATION":
         llm_facts.append("The evidence is not enough to decide, so a phone verification call is needed.")
 
@@ -351,11 +361,40 @@ def is_grounded(summary: str, facts: List[str]) -> bool:
                for n in _NUMBER.findall(summary))
 
 
+# Words that claim strength, rank or certainty; a summary may only use those the facts use
+CLAIM_WORDS = re.compile(
+    r"\b(strongest|strongly|strong|most|main|primary|primarily|key|decisive|decisively|biggest|"
+    r"major|identical|exact|exactly|definite|definitive|definitely|certain|certainly|clearly|"
+    r"proves?|proof|confirmed|guaranteed?|overwhelming|conclusive)\b",
+    re.IGNORECASE,
+)
+
+# First word of each verdict label, which the summary must contain
+VERDICT_KEYWORDS = {
+    "VERIFIED_REAL": "verified",
+    "UNCERTAIN_NEEDS_VERIFICATION": "uncertain",
+    "SUSPICIOUS_FAKE": "suspicious",
+    "HIGH_RISK_SCAM": "scam",
+}
+
+
+def _claim_stems(text: str) -> set:
+    """CLAIM_WORDS in text, without "-ly" so "strong" and "strongly" count as the same claim."""
+    return {w.lower().removesuffix("ly") for w in CLAIM_WORDS.findall(text)}
+
+
+def overclaims(summary: str, facts: List[str]) -> List[str]:
+    """Strength or certainty words the summary uses that the facts do not."""
+    return sorted(_claim_stems(summary) - _claim_stems(" ".join(facts)))
+
+
 LLM_PROMPT = """You explain to a job seeker why a fake job detection system reached its verdict.
 Write 3 to 5 short sentences of plain text: no headings, lists, bold or other formatting.
 Use ONLY the facts below and do not add facts, advice or numbers. The only number you may
-use is the confidence percentage. Mention the verdict first, then the evidence that
-mattered most, in the order given.
+use is the confidence percentage. Start with the verdict, then the main reason, then the
+less important evidence and warnings in the order given. Keep the facts' own strength words
+(strongly, moderately, slightly, similar) and do not call anything else the strongest,
+main or most important.
 
 Facts:
 {facts}
@@ -363,29 +402,61 @@ Facts:
 Explanation:"""
 
 
+# Attempts at an LLM summary; after a rejected one the model is told why and asked again
+LLM_ATTEMPTS: int = 2
+
+LLM_RETRY_PROMPT = """{prompt} {previous}
+
+That explanation was rejected: {problem}
+Rewrite it following the rules above.
+
+Explanation:"""
+
+
+def _summary_problem(text: str, facts: List[str], verdict: Optional[str]) -> Optional[str]:
+    """Why an LLM summary cannot be shown, or None if it passes every check."""
+    if not text:
+        return "it was empty."
+    if not is_grounded(text, facts):
+        return "it quoted numbers that are not in the facts."
+    extra = overclaims(text, facts)
+    if extra:
+        return f"it used the words {', '.join(extra)}, which claim more than the facts say."
+    keyword = VERDICT_KEYWORDS.get(verdict)
+    if keyword and keyword not in text.lower():
+        return "it does not name the verdict."
+    return None
+
+
 def summarize_with_llm(explanation: Dict[str, Any], model: Optional[str] = None) -> Optional[str]:
     """
     Plain-language summary of explanation["llm_facts"] from the local Ollama model.
 
-    Returns None if Ollama is unavailable or the summary quotes a number not in the facts;
-    the caller should then show explanation["summary"] instead.
+    A summary is rejected if it quotes a number not in the facts, claims strength or
+    certainty the facts do not (see CLAIM_WORDS), or does not name the verdict; the model
+    then gets one more try with the reason. Returns None if Ollama is unavailable or no
+    attempt passes; the caller should then show explanation["summary"] instead.
     """
     facts = explanation.get("llm_facts") or []
     if not facts:
         return None
+    prompt = LLM_PROMPT.format(facts="\n".join(f"- {f}" for f in facts))
     try:
         from langchain_ollama import ChatOllama
         from engines.credibility_engine import OLLAMA_MODEL
 
         llm = ChatOllama(model=model or OLLAMA_MODEL, temperature=0)
-        reply = llm.invoke(LLM_PROMPT.format(facts="\n".join(f"- {f}" for f in facts)))
-        text = (getattr(reply, "content", None) or str(reply)).strip()
-        # The app shows the summary as escaped text, so drop any Markdown emphasis
-        text = re.sub(r"[*#`]+", "", text).strip()
+        request = prompt
+        for _ in range(LLM_ATTEMPTS):
+            reply = llm.invoke(request)
+            text = (getattr(reply, "content", None) or str(reply)).strip()
+            # The app shows the summary as escaped text, so drop any Markdown emphasis
+            text = re.sub(r"[*#`]+", "", text).strip()
+            problem = _summary_problem(text, facts, explanation.get("verdict"))
+            if problem is None:
+                return text
+            print(f"[Warning] LLM explanation rejected: {problem}")
+            request = LLM_RETRY_PROMPT.format(prompt=prompt, previous=text, problem=problem)
     except Exception as e:
         print(f"[Warning] LLM explanation unavailable: {e}")
-        return None
-    if not text or not is_grounded(text, facts):
-        print("[Warning] LLM explanation rejected: it quoted numbers not in the facts.")
-        return None
-    return text
+    return None
