@@ -22,6 +22,7 @@ Public API:
     summarize_with_llm(explanation, model=None) -> Optional[str]
 """
 
+import os
 import re
 from typing import Any, Dict, List, Optional
 
@@ -402,6 +403,9 @@ Facts:
 Explanation:"""
 
 
+# Local Ollama model that writes the plain-language summary (the pipeline itself uses OLLAMA_MODEL)
+EXPLANATION_MODEL: str = os.getenv("EXPLANATION_MODEL", "llama3.2")
+
 # Attempts at an LLM summary; after a rejected one the model is told why and asked again
 LLM_ATTEMPTS: int = 2
 
@@ -443,9 +447,8 @@ def summarize_with_llm(explanation: Dict[str, Any], model: Optional[str] = None)
     prompt = LLM_PROMPT.format(facts="\n".join(f"- {f}" for f in facts))
     try:
         from langchain_ollama import ChatOllama
-        from engines.credibility_engine import OLLAMA_MODEL
 
-        llm = ChatOllama(model=model or OLLAMA_MODEL, temperature=0)
+        llm = ChatOllama(model=model or EXPLANATION_MODEL, temperature=0)
         request = prompt
         for _ in range(LLM_ATTEMPTS):
             reply = llm.invoke(request)
