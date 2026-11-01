@@ -262,6 +262,6 @@ def apply_verification_override(
     }
 
 
-# Auto-fit model on import if platt_model.pkl does not exist yet
-if __name__ != "__main__":
-    ensure_platt_model_loaded()
+# The Platt model is loaded (or fitted) lazily by calculate_confidence_score(). It is no longer
+# done at import, so importing apply_verification_override (post_call_fusion) does not write
+# a synthetic platt_model.pkl.

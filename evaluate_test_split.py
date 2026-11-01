@@ -64,7 +64,7 @@ def _entities(rec: dict):
 
 def _evidence_to_payload(offer_id: str, entities: dict, retrieved_evidence: list) -> dict:
     """Same Objective2InputPayload mapping the app uses."""
-    from pipeline_bridge import build_objective2_payload
+    from legacy.pipeline_bridge_llm import build_objective2_payload
     return build_objective2_payload(offer_id, entities, retrieved_evidence)
 
 
@@ -94,7 +94,7 @@ def llm(csv_path, entities_path, out_path):
     """Run the M-RAV alignment LLM step (Objective 2) on exactly the evidence the score stage uses."""
     from engines.alignment_chain import generate_alignment_triple
     from engines.credibility_engine import OLLAMA_MODEL
-    from pipeline_bridge import retrieve_offer_evidence
+    from legacy.pipeline_bridge_llm import retrieve_offer_evidence
     from schemas.input_schema import Objective2InputPayload
     from search_engine import EvidenceRetriever
 
@@ -139,7 +139,7 @@ def score(csv_path, entities_path, out_dir, llm_path=None):
     import credibility_engine as root_credibility
     from full_pipeline_orchestrator import CLASSIFIER_RELIABILITY
     from obj2dst import DSTEngine
-    from pipeline_bridge import analyze_extracted_offer
+    from legacy.pipeline_bridge_llm import analyze_extracted_offer
     from schemas.credibility_schema import MRAVTriple
     from search_engine import EvidenceRetriever
     from voice_verification_bridge import distance_to_similarity, _combine_masses

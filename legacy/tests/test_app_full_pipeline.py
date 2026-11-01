@@ -2,7 +2,7 @@
 
 from unittest.mock import patch
 
-import pipeline_bridge
+import legacy.pipeline_bridge_llm as pipeline_bridge  # moved from the project root (M4 integration)
 from models import JobOfferEntities
 from schemas.credibility_schema import MRAVTriple
 
