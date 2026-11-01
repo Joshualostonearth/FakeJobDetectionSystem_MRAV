@@ -1,0 +1,22 @@
+# Optional: phone verification (Objective 3 voice agent). Not needed for image/text -> verdict.
+#
+# 1) Into the app env (.venv-m4): the Streamlit process imports objective3_voice_agent when a call
+#    is placed, and the Ollama entity-extraction fallback (models.py) needs langchain-ollama.
+#      pip install -r requirements-voice.txt
+langchain-core==1.7.3
+langchain-ollama==1.1.0
+edge-tts==7.3.1
+faster-whisper==1.2.1
+fastapi==0.162.0
+uvicorn==0.54.0
+jinja2==3.1.6
+pyyaml==6.0.3
+python-multipart==0.0.33
+#
+# 2) The voice services (WhisperLive server, whisper_Test/call_bridge.py) run in their own env,
+#    whisper_Test/.venv, as before:
+#      pip install -r whisper_Test/requirements.txt
+#    (whisper-live, edge-tts, ollama, pyaudio, pydub)
+#
+# 3) WebRTC call page: Node.js, then 'npm install' in webrtc-call/server (node_modules is not committed).
+# 4) Ollama with the model in OLLAMA_MODEL (default ministral-3) for question generation / answer analysis.
