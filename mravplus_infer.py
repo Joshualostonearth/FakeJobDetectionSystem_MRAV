@@ -25,7 +25,6 @@ from __future__ import annotations
 import os
 import re
 import warnings
-from functools import reduce
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -176,6 +175,24 @@ def mass_dict(m: Sequence[float]) -> Dict[str, float]:
     return {"REAL": float(m[0]), "FAKE": float(m[1]), "UNCERTAIN": float(m[2])}
 
 
+
+def hf_load(loader, name: str, **kw):
+    """Load a Hugging Face asset from its cached snapshot folder when it is cached (a local path,
+    so no network request at all), otherwise by name (downloads it). Run
+    scripts/download_models.py once to fill the cache."""
+    try:
+        from huggingface_hub import snapshot_download
+        local = snapshot_download(name, local_files_only=True)
+    except Exception:
+        local = None
+    if local:
+        try:
+            return loader(local, **kw)
+        except Exception:
+            pass  # incomplete snapshot: fall back to the hub
+    return loader(name, **kw)
+
+
 # ──────────────────────────────────────────────────────────
 # DistilBERT hybrid gate (spec 3.4) - must match stage2.pt key-for-key
 # ──────────────────────────────────────────────────────────
@@ -189,7 +206,7 @@ def build_hybrid_gate(meta_dim: int):
         def __init__(self, meta_dim):
             super().__init__()
             # Config only (a few KB); the fine-tuned weights come from stage2.pt
-            self.bert = AutoModel.from_config(AutoConfig.from_pretrained(DISTILBERT_NAME))
+            self.bert = AutoModel.from_config(hf_load(AutoConfig.from_pretrained, DISTILBERT_NAME))
             self.meta = nn.Sequential(nn.Linear(meta_dim, 128), nn.ReLU())
             self.p_text = nn.Linear(768, 128)
             self.p_meta = nn.Linear(128, 128)
@@ -308,7 +325,7 @@ class M4Detector:
     def minilm(self):
         if self._minilm is None:
             from sentence_transformers import SentenceTransformer
-            self._minilm = SentenceTransformer(MINILM_NAME, device=self.device)
+            self._minilm = hf_load(SentenceTransformer, MINILM_NAME, device=self.device)
             self._minilm.max_seq_length = MINILM_MAX_SEQ_LEN
         return self._minilm
 
@@ -325,7 +342,7 @@ class M4Detector:
         model.load_state_dict(state, strict=True)  # raises on any missing/unexpected key
         model.to(self.device).eval()
         self._bert = model
-        self._tok = AutoTokenizer.from_pretrained(DISTILBERT_NAME)
+        self._tok = hf_load(AutoTokenizer.from_pretrained, DISTILBERT_NAME)
 
     @property
     def bert(self):
