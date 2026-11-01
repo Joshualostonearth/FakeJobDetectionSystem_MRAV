@@ -37,16 +37,17 @@ All gate targets met. Details: `results/m4_parity_report.md`.
 
 ## 3. Image tests
 
-**Synthetic posters (first run, before the extractor fixes).** 40 EMSCAD test postings (20 fraud, 20 legit, seed 42) rendered as clean PNGs, then image → EasyOCR → app pipeline:
+**Synthetic posters (final code, `9772a6b`).** 40 EMSCAD test postings (20 fraud, 20 legit, seed 42) rendered as clean PNGs, then image → EasyOCR → app pipeline. Details: `results/e2e_image_report.md`.
 
 | Path | Scored | Accuracy | Fraud recall | Fraud precision |
 |---|---|---|---|---|
-| Original structured posting | 40 | 0.85 | 0.75 | 0.94 |
-| Poster text pasted | 35 | 0.94 | 0.94 | 0.94 |
-| Poster image (OCR) | 35 | 0.94 | 0.94 | 0.94 |
+| Original structured posting | 40 | 0.850 | 0.75 | 0.94 |
+| Poster text pasted | 40 | 0.950 | 0.95 | 0.95 |
+| Poster image (OCR) | 40 | 0.925 | 0.90 | 0.95 |
 
-- Text path vs image path: the same verdict on 35 of 35.
-- The no-job-offer check refused 5 of the 40 posters (4 frauds, 1 legit). The cause was regex role detection missing all-caps or unlisted titles. Fixed in `a8cdb6f`. **A rerun with the fixed extractor is in progress, and this table will be updated from it.**
+- Text path vs image path: the same verdict on 39 of 40. The one flip is a borderline REVIEW-zone fraud (text 0.60, OCR 0.05).
+- No poster is refused any more. The first run had refused 5 (4 frauds) through the no-job-offer check; fixed in `a8cdb6f`.
+- The poster paths beat the structured path here mainly because missing metadata pushes towards FAKE. That is not a real gain, and with 40 postings the differences are within noise.
 - This is a small check on clean, computer-rendered text. Real phone photos will do worse.
 
 **`richmond_offer.png`** (no ground-truth label): FAKE, P(fraud) 0.634, zone HIGH. The explanation shows the letter's own words are net slightly legit-leaning (−0.04). The verdict comes from missing metadata (+0.41: no location, experience or employment type) and from 3 of 5 neighbours being fraud, at a low similarity of 0.42. This is the distribution shift in action.

@@ -67,3 +67,6 @@ webrtc-call.zip
 node_modules/
 .venv-m4/
 models/
+
+# Rendered synthetic posters (regenerate with scripts/poster_images.py)
+results/poster_images/

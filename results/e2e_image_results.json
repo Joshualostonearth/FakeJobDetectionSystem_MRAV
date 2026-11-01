@@ -1,0 +1,1065 @@
+{
+  "n_postings": 40,
+  "n_fraud": 20,
+  "seed": 42,
+  "seconds": 358.3,
+  "metrics": {
+    "structured": {
+      "n_scored": 40,
+      "n_errors": 0,
+      "accuracy": 0.85,
+      "fraud_recall": 0.75,
+      "fraud_precision": 0.9375,
+      "tp": 15,
+      "fp": 1,
+      "fn": 5,
+      "tn": 19
+    },
+    "text": {
+      "n_scored": 40,
+      "n_errors": 0,
+      "accuracy": 0.95,
+      "fraud_recall": 0.95,
+      "fraud_precision": 0.95,
+      "tp": 19,
+      "fp": 1,
+      "fn": 1,
+      "tn": 19
+    },
+    "image_path": {
+      "n_scored": 40,
+      "n_errors": 0,
+      "accuracy": 0.925,
+      "fraud_recall": 0.9,
+      "fraud_precision": 0.9473684210526315,
+      "tp": 18,
+      "fp": 1,
+      "fn": 2,
+      "tn": 19
+    }
+  },
+  "agreement": {
+    "text_vs_image": {
+      "n": 40,
+      "agreement": 0.975
+    },
+    "structured_vs_text": {
+      "n": 40,
+      "agreement": 0.9
+    },
+    "structured_vs_image": {
+      "n": 40,
+      "agreement": 0.925
+    }
+  },
+  "errors": [],
+  "rows": [
+    {
+      "test_row": 136,
+      "y": 0,
+      "image": "results\\poster_images\\test_0136_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005948530844132648,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.026562271002348144,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.02354939241632371,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 499
+      }
+    },
+    {
+      "test_row": 210,
+      "y": 0,
+      "image": "results\\poster_images\\test_0210_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.006502809917415323,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0330050512731413,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.030042126374371814,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1132
+      }
+    },
+    {
+      "test_row": 266,
+      "y": 1,
+      "image": "results\\poster_images\\test_0266_fraud.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.011491315590105662,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9910164391090891,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9907036883678925,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 810
+      }
+    },
+    {
+      "test_row": 268,
+      "y": 1,
+      "image": "results\\poster_images\\test_0268_fraud.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.006830912725119481,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.46813713014404107,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.4465717596632629,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 626
+      }
+    },
+    {
+      "test_row": 270,
+      "y": 1,
+      "image": "results\\poster_images\\test_0270_fraud.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.021982202751641616,
+        "zone": "REVIEW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9826989746552659,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9823026421873889,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 803
+      }
+    },
+    {
+      "test_row": 300,
+      "y": 1,
+      "image": "results\\poster_images\\test_0300_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.8910636036358118,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9408351697123871,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.8904777495679712,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 408
+      }
+    },
+    {
+      "test_row": 485,
+      "y": 1,
+      "image": "results\\poster_images\\test_0485_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9918240016560059,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9890322784225909,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9894979869806889,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 967
+      }
+    },
+    {
+      "test_row": 491,
+      "y": 0,
+      "image": "results\\poster_images\\test_0491_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0058905516652264555,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.03282641171206185,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.03311450176879586,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1498
+      }
+    },
+    {
+      "test_row": 522,
+      "y": 0,
+      "image": "results\\poster_images\\test_0522_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0058429225655048656,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.013128505782626403,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.01238698718879126,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1233
+      }
+    },
+    {
+      "test_row": 616,
+      "y": 0,
+      "image": "results\\poster_images\\test_0616_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0059122398455750125,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.009624439572911004,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.010015722134680938,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1136
+      }
+    },
+    {
+      "test_row": 1058,
+      "y": 1,
+      "image": "results\\poster_images\\test_1058_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9202452919261681,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9715106005764793,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9717838963517801,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1129
+      }
+    },
+    {
+      "test_row": 1080,
+      "y": 1,
+      "image": "results\\poster_images\\test_1080_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.994389399134467,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9917514667645997,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9909936235795781,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1561
+      }
+    },
+    {
+      "test_row": 1119,
+      "y": 0,
+      "image": "results\\poster_images\\test_1119_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0059133365763391526,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014545566893087029,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014183589765857029,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1311
+      }
+    },
+    {
+      "test_row": 1151,
+      "y": 0,
+      "image": "results\\poster_images\\test_1151_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0070132851804285785,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.008720392860959084,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.008746030739435723,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 1343
+      }
+    },
+    {
+      "test_row": 1275,
+      "y": 1,
+      "image": "results\\poster_images\\test_1275_fraud.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.007193144916655752,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9836907238687297,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9817057853928431,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 675
+      }
+    },
+    {
+      "test_row": 1403,
+      "y": 0,
+      "image": "results\\poster_images\\test_1403_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005910949242764841,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.008613758181227211,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.008709539855135387,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 1324
+      }
+    },
+    {
+      "test_row": 1444,
+      "y": 1,
+      "image": "results\\poster_images\\test_1444_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9157123463688174,
+        "zone": "REVIEW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9884898438042701,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9870357948454589,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1529
+      }
+    },
+    {
+      "test_row": 1457,
+      "y": 1,
+      "image": "results\\poster_images\\test_1457_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.8917897835929,
+        "zone": "REVIEW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9938069581371481,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9937638785473281,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1343
+      }
+    },
+    {
+      "test_row": 1476,
+      "y": 0,
+      "image": "results\\poster_images\\test_1476_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.006744186712768886,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.015620026656024712,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.015710240152155358,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 800
+      }
+    },
+    {
+      "test_row": 1569,
+      "y": 0,
+      "image": "results\\poster_images\\test_1569_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0064048053137368095,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.012704335343604415,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.012426983398578173,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 445
+      }
+    },
+    {
+      "test_row": 1721,
+      "y": 1,
+      "image": "results\\poster_images\\test_1721_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9938688244736359,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9882483740035343,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9884282970063601,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 968
+      }
+    },
+    {
+      "test_row": 1725,
+      "y": 0,
+      "image": "results\\poster_images\\test_1725_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0058564060821375856,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005971969726031323,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0060401731547350965,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 678
+      }
+    },
+    {
+      "test_row": 1924,
+      "y": 1,
+      "image": "results\\poster_images\\test_1924_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9931693740425755,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9939755967852502,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9939314037989729,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1048
+      }
+    },
+    {
+      "test_row": 1979,
+      "y": 0,
+      "image": "results\\poster_images\\test_1979_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005947003007309937,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.04026162065697199,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.0666514180453663,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 739
+      }
+    },
+    {
+      "test_row": 2061,
+      "y": 1,
+      "image": "results\\poster_images\\test_2061_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9944363311645561,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9911697340309541,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9911667564211183,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 618
+      }
+    },
+    {
+      "test_row": 2131,
+      "y": 0,
+      "image": "results\\poster_images\\test_2131_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005871601225524415,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014112547200785662,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014424246617638642,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1467
+      }
+    },
+    {
+      "test_row": 2178,
+      "y": 1,
+      "image": "results\\poster_images\\test_2178_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9935940816348291,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9940954410115549,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9939054368777656,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 901
+      }
+    },
+    {
+      "test_row": 2195,
+      "y": 1,
+      "image": "results\\poster_images\\test_2195_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9594747977007936,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.952698363122036,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9471906122775562,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 803
+      }
+    },
+    {
+      "test_row": 2196,
+      "y": 0,
+      "image": "results\\poster_images\\test_2196_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005950697178656913,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.009968703367585789,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.010017067992245072,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 1178
+      }
+    },
+    {
+      "test_row": 2258,
+      "y": 1,
+      "image": "results\\poster_images\\test_2258_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9780814328362352,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9929124630330575,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9927560557508232,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 801
+      }
+    },
+    {
+      "test_row": 2344,
+      "y": 0,
+      "image": "results\\poster_images\\test_2344_legit.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9939620944968461,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9938130382906839,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9936033408301449,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1007
+      }
+    },
+    {
+      "test_row": 2359,
+      "y": 1,
+      "image": "results\\poster_images\\test_2359_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9943189564388564,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.992905129009096,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9928841114188155,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1006
+      }
+    },
+    {
+      "test_row": 2362,
+      "y": 1,
+      "image": "results\\poster_images\\test_2362_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9942463087397679,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9944524246067341,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.994436347955819,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1543
+      }
+    },
+    {
+      "test_row": 2378,
+      "y": 0,
+      "image": "results\\poster_images\\test_2378_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005876474504587121,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.009763359740632298,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.011989827227525703,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1403
+      }
+    },
+    {
+      "test_row": 2391,
+      "y": 0,
+      "image": "results\\poster_images\\test_2391_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.006225729842351333,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014027544399785548,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.014484431691134508,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 555
+      }
+    },
+    {
+      "test_row": 2450,
+      "y": 0,
+      "image": "results\\poster_images\\test_2450_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005876009412618482,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.030578839009934057,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.02466926535952787,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1403
+      }
+    },
+    {
+      "test_row": 2571,
+      "y": 1,
+      "image": "results\\poster_images\\test_2571_fraud.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.035764302988335585,
+        "zone": "REVIEW",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.6029178452112939,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.04640819994980447,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 758
+      }
+    },
+    {
+      "test_row": 2803,
+      "y": 0,
+      "image": "results\\poster_images\\test_2803_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.005842444068830908,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.010844800688855953,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.010920157350336924,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 1182
+      }
+    },
+    {
+      "test_row": 2865,
+      "y": 1,
+      "image": "results\\poster_images\\test_2865_fraud.png",
+      "structured": {
+        "verdict": "FAKE",
+        "p_fake": 0.9944009294928594,
+        "zone": "HIGH",
+        "error": null
+      },
+      "text": {
+        "verdict": "FAKE",
+        "p_fake": 0.9842832573106538,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "FAKE",
+        "p_fake": 0.9816617771308713,
+        "zone": "HIGH",
+        "error": null,
+        "ocr_chars": 1521
+      }
+    },
+    {
+      "test_row": 3048,
+      "y": 0,
+      "image": "results\\poster_images\\test_3048_legit.png",
+      "structured": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.006034115806023188,
+        "zone": "LOW",
+        "error": null
+      },
+      "text": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.03428701420309903,
+        "zone": "LOW",
+        "error": null,
+        "ocr_chars": 0
+      },
+      "image_path": {
+        "verdict": "NOT FAKE",
+        "p_fake": 0.008800757464398276,
+        "zone": "REVIEW",
+        "error": null,
+        "ocr_chars": 1138
+      }
+    }
+  ],
+  "richmond_offer": {
+    "verdict": "FAKE",
+    "p_fake": 0.6343478129260913,
+    "zone": "HIGH",
+    "error": null,
+    "ocr_chars": 622
+  }
+}
