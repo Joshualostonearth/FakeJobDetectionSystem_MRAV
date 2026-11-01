@@ -173,3 +173,26 @@ def test_signoff_title_is_not_a_name():
     assert e["company_name"] == "Richmond College"
     assert e["job_role"] == "Administrative Officer"
     assert e["recruiter_name"] is None
+
+
+def test_ocr_offer_letter_entities():
+    # EasyOCR output of a WhatsApp-compressed GAO Tek internship letter (logo split over two
+    # lines, "Sincerely ." with a stray dot, blank "Signed by:" followed by the candidate's name)
+    from ocr_engine import sanitize_ocr_text
+    text = sanitize_ocr_text(
+        "Gao\nTek Inc.\nAMember of GAO Group\nInternship Offer_Letter\nDear Asim ,\n"
+        "We are pleased to offer you an intemship at GAO Tek Inc Your internship is scheduled\n"
+        "Sincerely .\nFlora Abraham\nHR Manager\nlu @gaotek com\nGAO Tek Inc\nwww GAOTek com\n"
+        "agree with the terms and condition outlined above and in the agreement:\n"
+        "Signed by:\nAiAlud\nPosition applied: Tech Support")
+    e = extract_entities(text)
+    assert e["company_name"] == "GAO Tek Inc"
+    assert e["recruiter_name"] == "Flora Abraham"
+    assert e["recruiter_email"] == "lu@gaotek.com"
+    assert e["domain_or_website"] == "www.GAOTek.com"
+    assert e["job_role"] == "Tech Support"
+
+
+def test_label_value_stays_on_its_line():
+    e = extract_entities("Offer from Acme Ltd\nSigned by:\nJane Candidate\nRecruiter: Tom Lee")
+    assert e["recruiter_name"] == "Tom Lee"

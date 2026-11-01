@@ -18,14 +18,49 @@ def sanitize_ocr_text(text: str) -> str:
     """
     if not text:
         return ""
+    # OCR often reads the dot before the TLD as a space: 'hr@gaotek com' -> 'hr@gaotek.com'
+    text = re.sub(
+        r'@([a-zA-Z0-9-]+) (edu|com|org|net|gov)\b',
+        r'@\1.\2',
+        text,
+        flags=re.IGNORECASE
+    )
     # Regex: Inserts missing dot before standard TLDs if OCR drops it
     text = re.sub(
-        r'@([a-zA-Z0-9-]+)(edu|com|org|net|gov)\b', 
-        r'@\1.\2', 
-        text, 
+        r'@([a-zA-Z0-9-]+)(edu|com|org|net|gov)\b',
+        r'@\1.\2',
+        text,
+        flags=re.IGNORECASE
+    )
+    # ... and a space before the '@': 'hr @gaotek.com' -> 'hr@gaotek.com'
+    text = re.sub(r'\b([A-Za-z0-9._%+-]+) @([a-zA-Z0-9-]+\.)', r'\1@\2', text)
+    # 'www GAOTek com' / 'WWW.GAOTek com' -> 'www.GAOTek.com'
+    text = re.sub(
+        r'\b[wW]{3}[ .]([a-zA-Z0-9-]+)[ .](edu|com|org|net|gov)\b',
+        r'www.\1.\2',
+        text,
         flags=re.IGNORECASE
     )
     return text
+
+SMALL_IMAGE_WIDTH = 1000  # WhatsApp/phone-compressed letters are often ~768 px wide
+
+
+def _upscale_small(image_path: str):
+    """
+    Double the size of narrow images before OCR. On a 768x1024 WhatsApp letter this recovered
+    '4 calendar days' and 'www GAOTek com', which EasyOCR misread at the original size.
+    Returns a numpy array (or the path unchanged if the image is already wide enough).
+    """
+    import numpy as np
+    from PIL import Image
+
+    with Image.open(image_path) as im:
+        if im.width >= SMALL_IMAGE_WIDTH:
+            return image_path
+        im = im.convert("RGB")
+        return np.array(im.resize((im.width * 2, im.height * 2), Image.LANCZOS))
+
 
 def extract_text_from_image(reader, image_path: str) -> str:
     """Runs OCR on the given image path and returns the extracted text."""
@@ -38,7 +73,7 @@ def extract_text_from_image(reader, image_path: str) -> str:
     
     try:
         print(f"Running OCR on {image_path}...")
-        results = reader.readtext(image_path)
+        results = reader.readtext(_upscale_small(image_path))
         
         # Combine all detected text
         full_text = "\n".join(

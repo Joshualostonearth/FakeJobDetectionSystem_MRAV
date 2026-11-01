@@ -31,11 +31,13 @@ PHONE_RE = re.compile(r"(?<![\w])(\+?\(?\d[\d\s().-]{6,18}\d)(?![\w])")
 # "Label: value" lines
 _LABELS = {
     "company_name": r"company(?:\s+name)?|organi[sz]ation|employer|firm|institution|hiring\s+company",
-    "job_role": r"job\s+title|position(?:\s+title)?|role|designation|job\s+role|vacancy|post|title",
+    "job_role": r"job\s+title|position(?:\s+title|\s+applied(?:\s+for)?)?|role|designation|job\s+role|vacancy|post|title",
     "recruiter_name": r"recruiter(?:\s+name)?|contact(?:\s+person)?|hiring\s+manager|hr\s+contact|signed\s+by",
     "location": r"location|job\s+location|work\s+location|city|address|place\s+of\s+work",
 }
-_LABEL_RES = {k: re.compile(rf"^\s*(?:{v})\s*[:\-–]\s*(.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+# The value must be on the label's own line: "Signed by:\nAsim" is a blank signature line
+# followed by the candidate's name, not a recruiter called Asim
+_LABEL_RES = {k: re.compile(rf"^[ \t]*(?:{v})[ \t]*[:\-–][ \t]*(\S.*?)[ \t]*$", re.IGNORECASE | re.MULTILINE)
               for k, v in _LABELS.items()}
 
 ORG_SUFFIX = (r"(?:Inc\.?|Incorporated|Ltd\.?|Limited|LLC|LLP|PLC|Corp\.?|Corporation|Company|Co\.|"
@@ -68,7 +70,7 @@ JOB_CONTEXT_RE = re.compile(
 MIN_JOB_CONTEXT = 2
 
 SIGNOFF_RE = re.compile(
-    r"(?:regards|sincerely|best|thanks|thank\s+you|yours\s+(?:truly|faithfully))\s*,?\s*\n+\s*"
+    r"(?:regards|sincerely|best|thanks|thank\s+you|yours\s+(?:truly|faithfully))\s*[,.]?\s*\n+\s*"  # OCR: "Sincerely ."
     r"([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){0,2})\s*$",
     re.IGNORECASE | re.MULTILINE)
 
@@ -121,6 +123,23 @@ def _domain(text: str, email: Optional[str]) -> Optional[str]:
     return None
 
 
+def _org_name(text: str) -> Optional[str]:
+    """
+    First "... Inc"-style name, unless a later one extends it: OCR often splits a logo
+    ("Gao" / "Tek Inc."), while the body says "at GAO Tek Inc".
+    """
+    first = None
+    for m in ORG_RE.finditer(text):
+        v = _clean_value(m.group(1), 6)
+        if not v:
+            continue
+        if first is None:
+            first = v
+        elif v.lower().endswith(" " + first.lower()):
+            return v
+    return first
+
+
 def extract_entities(text: str, fields: Optional[Dict[str, Any]] = None) -> Dict[str, Optional[str]]:
     """
     Regex entity extraction. `fields` (title, location, company_name, ...) from the UI win over
@@ -139,7 +158,7 @@ def extract_entities(text: str, fields: Optional[Dict[str, Any]] = None) -> Dict
     ent["domain_or_website"] = _domain(text, ent["recruiter_email"])
 
     if not ent["company_name"]:
-        ent["company_name"] = _first(ORG_RE, text, 6)
+        ent["company_name"] = _org_name(text)
     if not ent["company_name"]:
         m = ORG_CONTEXT_RE.search(text)
         cand = _clean_value(m.group(1), 5) if m else None

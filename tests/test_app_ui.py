@@ -37,7 +37,12 @@ SCAM = ("Position: Data Entry Clerk (Work From Home)\nCompany: Global Star Solut
 
 @pytest.fixture(autouse=True)
 def _no_ollama(monkeypatch):
+    import pipeline_bridge as pb
+
     monkeypatch.setenv("OLLAMA_HOST", "http://127.0.0.1:9")  # nothing listens there
+    # A HIGH RISK result auto-starts the call; with start_all.sh running it would wait for
+    # someone to answer on :3000, so act as if the call bridge is down
+    monkeypatch.setattr(pb, "check_voice_services", lambda: "call bridge disabled in tests")
     os.chdir(PROJECT_ROOT)
 
 
