@@ -69,19 +69,16 @@ Global findings (`results/xai_global_report.md`):
 
 ## 5. Tests run
 
+All runs on the final code (commit `a51520b`), with Ollama blocked (`OLLAMA_HOST` set to a dead port).
+
 | Test | Result |
 |---|---|
-| `tests/test_m4_parity.py` (run as a script; same function the pytest asserts on) | all gate checks met |
-| `tests/test_xai.py` | 4 / 4 passed |
-| `tests/test_m4_bridge.py` | 12 / 12 passed on the full run; after the extractor fixes, 12 / 12 on the fast subset (the 2 slow tests were not re-run) |
-| `tests/test_app_ui.py` (Streamlit AppTest, headless) | 3 / 3 passed |
-| `tests/test_e2e_image.py` | 3 / 3 passed (before the last regex commit `9772a6b`) |
-| `tests/test_voice_to_mass.py`, `test_objective3.py`, `test_voice_bridge.py` | 35 / 35 passed |
-| `tests/test_dst.py`, `test_objective4.py` | 15 / 15 passed |
+| **M4 session:** `pytest tests/test_m4_parity.py tests/test_xai.py tests/test_m4_bridge.py tests/test_app_ui.py tests/test_e2e_image.py` | **28 / 28 passed** (7 min 47 s): parity 4, XAI 4, bridge 14, UI 3, e2e image 3 |
+| **Old voice / DST session:** `pytest tests/test_voice_to_mass.py tests/test_objective3.py tests/test_voice_bridge.py tests/test_dst.py tests/test_objective4.py` | **50 / 50 passed**: voice_to_mass 20, objective3 6, voice_bridge 9, dst 9, objective4 6 |
 | Old-pipeline tests (`test_authority`, `test_consensus`, `test_credibility_engine`, `test_evaluation_fixes`, `test_freshness`, `test_retrieval_and_filter`, `legacy/tests/test_app_full_pipeline`) | **not run**: they need langchain-community, FAISS and rapidfuzz, which are deliberately not in the M4 env |
 | Real app launch: `start_all.ps1 -NoVoice` | Streamlit served on :8501 (health ok, HTTP 200) and stopped cleanly |
 
-Still to do before calling it finished: one final clean run of the whole list above on the last commit, including `pytest tests/test_m4_parity.py`.
+Run the two sessions separately. The old `tests/test_objective3.py` replaces `uvicorn`, `edge_tts` and other modules with `MagicMock` in `sys.modules` when it is imported. In a combined session that breaks the `transformers` import that M4 needs: the M4 tests then fail on an import error (`uvicorn.__spec__ is not set`), not on their own checks. The old test was left unchanged.
 
 ## 6. How to run
 

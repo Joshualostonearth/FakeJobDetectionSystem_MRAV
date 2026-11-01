@@ -100,7 +100,8 @@ Open http://localhost:8501.
 python -m pytest tests/test_m4_parity.py -v -s   # M4 vs Kaggle predictions (~4 min)
 python -m pytest tests/test_xai.py -v -s         # attribution identity, IG completeness, deletion test (~2 min)
 python -m pytest tests/test_m4_bridge.py tests/test_app_ui.py tests/test_e2e_image.py -v
-python -m pytest tests/test_voice_to_mass.py tests/test_objective3.py tests/test_voice_bridge.py -v   # needs requirements-voice.txt
+python -m pytest tests/test_voice_to_mass.py tests/test_objective3.py tests/test_voice_bridge.py -v   # needs requirements-voice.txt; run in a separate pytest session
+#   (tests/test_objective3.py replaces uvicorn etc. with mocks in sys.modules, which breaks the transformers import M4 needs)
 python scripts/poster_images.py                  # 40 synthetic posters: structured vs text vs image
 python scripts/xai_global_report.py              # results/xai_global_report.md
 ```
