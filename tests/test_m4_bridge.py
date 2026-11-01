@@ -164,3 +164,12 @@ def test_title_line_fallback_for_posters():
         assert e["job_role"] == title, e
     # an event poster has no job vocabulary and stays without a role
     assert extract_entities("Security And Hacking Conference 2026\nKeynotes and workshops")["job_role"] is None
+
+
+def test_signoff_title_is_not_a_name():
+    text = ("Richmond College\nDear Ms Waxler, we promote your job status. Salary raise of $2,000 per month.\n"
+            "Please let the HR Department know at hr@richmond.edu:\nSincerely\nAdministrative Officer\nRichmond College")
+    e = extract_entities(text)
+    assert e["company_name"] == "Richmond College"
+    assert e["job_role"] == "Administrative Officer"
+    assert e["recruiter_name"] is None

@@ -42,7 +42,7 @@ ORG_SUFFIX = (r"(?:Inc\.?|Incorporated|Ltd\.?|Limited|LLC|LLP|PLC|Corp\.?|Corpor
               r"Pvt\.?(?:\s+Ltd\.?)?|GmbH|S\.A\.|Technologies|Technology|Solutions|Systems|Services|"
               r"Group|Holdings|Consulting|Labs|Software|College|University|Institute|School|Academy|"
               r"Hospital|Bank|Agency|Enterprises|International|Global|Partners|Foundation)")
-ORG_RE = re.compile(rf"\b((?:[A-Z][\w&'.-]*\s+){{1,4}}(?i:{ORG_SUFFIX}))(?![\w])")
+ORG_RE = re.compile(rf"\b((?:[A-Z][\w&'.-]*[ \t]+){{1,4}}(?i:{ORG_SUFFIX}))(?![\w])")  # within one line
 ORG_CONTEXT_RE = re.compile(
     r"\b(?:join|joining|welcome\s+to|on\s+behalf\s+of|at|with|from)\s+((?:[A-Z][\w&'.-]*\s?){1,5})",
 )
@@ -53,7 +53,7 @@ ROLE_WORDS = (r"(?:Engineer|Developer|Programmer|Manager|Intern|Internship|Train
               r"Editor|Scientist|Architect|Lead|Director|Supervisor|Advisor|Recruiter|Receptionist|"
               r"Secretary|Cashier|Salesperson|Marketer|Researcher|Lecturer|Professor|Instructor|Auditor|"
               r"Planner|Tester|Support|Head|Partner|Worker|Staff|Handler|Packer|Chef|Cook|Guard)")
-ROLE_PHRASE_RE = re.compile(rf"\b((?:[A-Z][A-Za-z/&+-]*\s+){{0,3}}{ROLE_WORDS}s?)\b")
+ROLE_PHRASE_RE = re.compile(rf"\b((?:[A-Z][A-Za-z/&+-]*[ \t]+){{0,3}}{ROLE_WORDS}s?)\b")  # within one line
 ROLE_CONTEXT_RE = re.compile(
     rf"\b(?:position\s+of|role\s+of|post\s+of|as\s+(?:an?|the)|hiring\s+(?:an?|for)?|looking\s+for\s+(?:an?)?)\s+"
     rf"((?:[A-Za-z/&+-]+\s+){{0,3}}?{ROLE_WORDS}s?)\b",
@@ -155,7 +155,12 @@ def extract_entities(text: str, fields: Optional[Dict[str, Any]] = None) -> Dict
         if ":" not in first and not re.search(r"[.!?]$", first):
             ent["job_role"] = _clean_value(first, 8)
     if not ent["recruiter_name"]:
-        ent["recruiter_name"] = _first(SIGNOFF_RE, text, 4)
+        name = _first(SIGNOFF_RE, text, 4)
+        # a sign-off such as "Sincerely, / Administrative Officer" gives a title, not a name
+        if name and re.search(rf"{ROLE_WORDS}s?$", name):
+            ent["job_role"] = ent["job_role"] or name
+        else:
+            ent["recruiter_name"] = name
 
     overrides = {"company_name": fields.get("company_name") or fields.get("company"),
                  "job_role": fields.get("title") or fields.get("job_role"),
