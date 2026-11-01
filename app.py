@@ -24,9 +24,17 @@ except (ImportError, AttributeError):
 import html
 
 import streamlit as st
-from pipeline_bridge import handle_ui_submission, handle_phone_verification, VERDICT_TO_RISK_LEVEL
+from pipeline_bridge import (
+    M4_LIMITATION,
+    VERDICT_TO_RISK_LEVEL,
+    get_detector,
+    handle_phone_verification,
+    handle_ui_submission,
+)
 from ocr_engine import init_ocr_reader
-from search_engine import EvidenceRetriever
+from mravplus_infer import ModelFilesMissing
+from xai.render import bars_html, highlight_html, word_scores_from_ig
+from mravplus_infer import clean as m4_clean
 
 # 1. Page Configuration
 st.set_page_config(
@@ -341,8 +349,21 @@ def load_ocr_reader():
 
 
 @st.cache_resource(show_spinner=False)
-def load_retriever():
-    return EvidenceRetriever(index_folder="faiss_index")
+def load_detector():
+    return get_detector()
+
+
+# Optional structured fields: M4 was trained on structured postings, so filling these in
+# brings poster input closer to what the model was validated on.
+TRI_STATE = {"Unknown": None, "Yes": 1, "No": 0}
+
+
+def _category_options(detector, column):
+    try:
+        cats = detector.ohe.categories_[list(detector.ohe.feature_names_in_).index(column)]
+        return ["Unknown"] + [c for c in cats if c != "Unknown"]
+    except Exception:
+        return ["Unknown"]
 
 
 # 4. Session State Setup
@@ -361,17 +382,44 @@ if "voice_error" not in st.session_state:
 if "auto_call_pending" not in st.session_state:
     st.session_state.auto_call_pending = False
 
+if "deletion_result" not in st.session_state:
+    st.session_state.deletion_result = None
+
 
 # 5. Header Component
 st.markdown(
     """
     <div class="app-header">
         <h1>🛡️ Fake Job & Internship Detection System</h1>
-        <p>Upload a job offer letter image, paste the job offer text, or provide both for hybrid multi-stage verification.</p>
+        <p>Upload a job offer letter image, paste the job offer text, or provide both. The MRAV+ M4 model
+        (TF-IDF classifier + similar known postings + DistilBERT for borderline cases, fused with Dempster-Shafer
+        theory) flags the offer and explains why. No LLM is used for the verdict.</p>
     </div>
     """,
     unsafe_allow_html=True,
 )
+
+try:
+    detector = load_detector()
+    detector_error = None
+except (ModelFilesMissing, ValueError) as err:
+    detector, detector_error = None, str(err)
+
+if detector_error:
+    st.markdown(
+        f"""
+        <div class="error-box">
+            <div class="error-box-title">Model files missing</div>
+            <div>{html.escape(detector_error)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+for w in detector.load_warnings:
+    st.markdown(f'<div class="error-box"><div class="error-box-title">Environment warning</div><div>{html.escape(w)}</div></div>',
+                unsafe_allow_html=True)
 
 
 # 6. Input Section
@@ -399,6 +447,39 @@ with col_text:
         label_visibility="collapsed",
     )
 
+with st.expander("Optional: structured posting details (improves reliability)", expanded=False):
+    st.markdown(
+        "<p style='font-size: 13px;'>M4 was trained on structured job postings. Anything you fill in here is "
+        "used as that posting's field; leave a field as Unknown / empty if you do not know it.</p>",
+        unsafe_allow_html=True,
+    )
+    f_col1, f_col2, f_col3 = st.columns(3, gap="medium")
+    with f_col1:
+        f_title = st.text_input("Job title")
+        f_location = st.text_input("Location (e.g. US, NY, New York)")
+        f_salary = st.text_input("Salary range")
+        f_department = st.text_input("Department")
+    with f_col2:
+        f_employment = st.selectbox("Employment type", _category_options(detector, "employment_type"))
+        f_experience = st.selectbox("Required experience", _category_options(detector, "required_experience"))
+        f_education = st.selectbox("Required education", _category_options(detector, "required_education"))
+        f_industry = st.selectbox("Industry", _category_options(detector, "industry"))
+        f_function = st.selectbox("Function", _category_options(detector, "function"))
+    with f_col3:
+        f_logo = st.radio("Company logo shown?", list(TRI_STATE), horizontal=True)
+        f_remote = st.radio("Remote / telecommuting?", list(TRI_STATE), horizontal=True)
+        f_questions = st.radio("Screening questions?", list(TRI_STATE), horizontal=True)
+    f_profile = st.text_area("Company profile", height=80)
+
+structured_fields = {
+    "title": f_title, "location": f_location, "salary_range": f_salary, "department": f_department,
+    "company_profile": f_profile,
+    "employment_type": f_employment, "required_experience": f_experience, "required_education": f_education,
+    "industry": f_industry, "function": f_function,
+    "has_company_logo": TRI_STATE[f_logo], "telecommuting": TRI_STATE[f_remote], "has_questions": TRI_STATE[f_questions],
+}
+structured_fields = {k: v for k, v in structured_fields.items() if v not in (None, "", "Unknown")}
+
 st.markdown("</div>", unsafe_allow_html=True)
 
 # 7. Action Button
@@ -414,6 +495,7 @@ if reset_clicked:
     st.session_state.voice_result = None
     st.session_state.voice_error = None
     st.session_state.auto_call_pending = False
+    st.session_state.deletion_result = None
     st.rerun()
 
 
@@ -422,7 +504,8 @@ if analyze_clicked:
     st.session_state.error_message = None
     st.session_state.voice_result = None
     st.session_state.voice_error = None
-    
+    st.session_state.deletion_result = None
+
     # Input validation prior to loading spinners
     has_text = bool(user_text_input and user_text_input.strip())
     has_img = uploaded_image is not None
@@ -433,16 +516,16 @@ if analyze_clicked:
         )
         st.session_state.analysis_result = None
     else:
-        with st.spinner("Analyzing offer through OCR, entity extraction, and credibility engine..."):
+        with st.spinner("Analyzing offer: OCR, M4 scoring and explanation..."):
             try:
-                reader = load_ocr_reader()
-                retriever = load_retriever()
+                reader = load_ocr_reader() if has_img else None
 
                 result = handle_ui_submission(
                     image_file=uploaded_image,
                     user_text=user_text_input,
                     reader=reader,
-                    retriever=retriever,
+                    detector=detector,
+                    fields=structured_fields or None,
                 )
                 st.session_state.analysis_result = result
                 st.session_state.error_message = None
@@ -471,9 +554,9 @@ if st.session_state.error_message:
 res = st.session_state.analysis_result
 
 if res:
-    st.markdown('<div class="ui-card"><div class="ui-card-title">2. Credibility Evaluation Results</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ui-card"><div class="ui-card-title">2. M4 Detection Result</div>', unsafe_allow_html=True)
 
-    # Top Row: Trust Score + Risk Level Badge
+    # Top Row: Trust Score + Verdict / Risk Level Badge
     m_col1, m_col2 = st.columns([1, 1], gap="medium")
 
     with m_col1:
@@ -500,20 +583,25 @@ if res:
             f"""
             <div style="height: 100%; display: flex; flex-direction: column; justify-content: center;">
                 <div class="{badge_class}">
-                    RISK LEVEL: {risk_lvl}
+                    {html.escape(res.get('final_verdict', ''))} &middot; {risk_lvl}
                 </div>
+                <p style="font-size: 13px; margin: 8px 0 0 0;">Calibrated P(fraud) = {res['p_fake']:.3f} &middot;
+                zone {html.escape(res.get('zone', ''))}{' &middot; DistilBERT consulted' if res['m4'].get('used_distilbert') else ''}</p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<p style='font-size: 12px; color: #805232; margin-top: 10px;'>{html.escape(res.get('limitations', M4_LIMITATION))}</p>",
+        unsafe_allow_html=True,
+    )
 
-    # Second Row: M-RAV Explanation & Raised Warning Flags
+    # Second Row: Explanation summary & Raised Warning Flags
     exp_col, flags_col = st.columns([1, 1], gap="medium")
 
     with exp_col:
-        st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Credibility Assessment Explanation</p>", unsafe_allow_html=True)
+        st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Why (plain-language summary, no LLM)</p>", unsafe_allow_html=True)
         st.markdown(
             f"""
             <div style="background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 14px; min-height: 110px;">
@@ -541,21 +629,131 @@ if res:
     st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Extracted Job Offer Entities</p>", unsafe_allow_html=True)
     ent = res.get("extracted_entities", {})
     
+    ent_rows = [("Company Name", "company_name"), ("Job Role", "job_role"), ("Recruiter Name", "recruiter_name"),
+                ("Recruiter Email", "recruiter_email"), ("Recruiter Phone", "recruiter_phone"),
+                ("Website / Domain", "domain_or_website"), ("Location", "location")]
+    ent_html = "".join(
+        f"<tr><th>{label}</th><td>{html.escape(str(ent.get(key) or 'Not Specified'))}</td></tr>" for label, key in ent_rows
+    )
+    st.markdown(f'<table class="entity-table">{ent_html}</table>', unsafe_allow_html=True)
     st.markdown(
-        f"""
-        <table class="entity-table">
-            <tr><th>Company Name</th><td>{ent.get('company_name') or 'Not Specified'}</td></tr>
-            <tr><th>Job Role</th><td>{ent.get('job_role') or 'Not Specified'}</td></tr>
-            <tr><th>Recruiter Name</th><td>{ent.get('recruiter_name') or 'Not Specified'}</td></tr>
-            <tr><th>Recruiter Email</th><td>{ent.get('recruiter_email') or 'Not Specified'}</td></tr>
-            <tr><th>Website / Domain</th><td>{ent.get('domain_or_website') or 'Not Specified'}</td></tr>
-            <tr><th>Location</th><td>{ent.get('location') or 'Not Specified'}</td></tr>
-        </table>
-        """,
+        "<p style='font-size: 12px; margin-top: 6px;'>Entities are found with regular expressions and are used only "
+        "for the phone call; they do not affect the verdict.</p>",
         unsafe_allow_html=True,
     )
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # 10b. Explanation (Objective 5)
+    xai = res.get("xai")
+    if xai:
+        st.markdown('<div class="ui-card"><div class="ui-card-title">Explanation (Objective 5)</div>', unsafe_allow_html=True)
+        for w in xai.get("warnings", []):
+            st.markdown(f'<div class="flag-item">{html.escape(w)}</div>', unsafe_allow_html=True)
+
+        m1 = xai["m1"]
+        st.markdown(
+            "<p style='font-weight: 700; margin-bottom: 4px;'>Words that drove the text classifier</p>"
+            "<p style='font-size: 13px; margin-bottom: 8px;'>Exact contributions to the TF-IDF SVM's score: "
+            "<span style='background: rgba(163, 58, 43, 0.5); padding: 0 3px;'>red</span> pushes towards FAKE, "
+            "<span style='background: rgba(46, 125, 50, 0.5); padding: 0 3px;'>green</span> towards REAL. "
+            f"Contributions + intercept reproduce the classifier's decision value "
+            f"({m1['decision_function']:+.3f}; check error {m1['identity_error']:.1e}).</p>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<div style='background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 14px; "
+            "font-size: 14px; line-height: 1.8; max-height: 360px; overflow-y: auto;'>"
+            f"{highlight_html(res.get('scoring_text', ''), m1['token_scores'])}</div>",
+            unsafe_allow_html=True,
+        )
+        b_col1, b_col2 = st.columns([1, 1], gap="medium")
+        with b_col1:
+            st.markdown("<p style='font-weight: 700; margin: 12px 0 4px 0;'>Towards FAKE</p>", unsafe_allow_html=True)
+            st.markdown(bars_html(m1["top_fraud_terms"]), unsafe_allow_html=True)
+        with b_col2:
+            st.markdown("<p style='font-weight: 700; margin: 12px 0 4px 0;'>Towards REAL</p>", unsafe_allow_html=True)
+            st.markdown(bars_html(m1["top_legit_terms"]), unsafe_allow_html=True)
+        if m1["metadata"]:
+            st.markdown("<p style='font-weight: 700; margin: 12px 0 4px 0;'>Metadata contributions</p>", unsafe_allow_html=True)
+            st.markdown(bars_html(m1["metadata"][:8], label_key="feature"), unsafe_allow_html=True)
+
+        # DST evidence decomposition
+        dst = xai["dst"]
+        st.markdown("<p style='font-weight: 700; margin: 16px 0 4px 0;'>How the evidence sources were combined (Dempster-Shafer)</p>",
+                    unsafe_allow_html=True)
+        dst_rows = "".join(
+            f"<tr><td>{html.escape(s['label'])}</td>"
+            f"<td>{'' if s['says_p_fake'] is None else format(s['says_p_fake'], '.2f')}</td>"
+            f"<td>{s['mass']['REAL']:.2f} / {s['mass']['FAKE']:.2f} / {s['mass']['UNCERTAIN']:.2f}</td>"
+            f"<td>{'n/a' if s['effect_on_p_fake'] is None else format(s['effect_on_p_fake'] * 100, '+.1f') + ' pts'}</td></tr>"
+            for s in dst["sources"]
+        )
+        st.markdown(
+            "<table class='entity-table'><tr><th>Source</th><th>Says P(fraud)</th><th>Mass REAL / FAKE / Uncertain</th>"
+            f"<th>Effect on P(fraud)</th></tr>{dst_rows}</table>"
+            f"<p style='font-size: 13px; margin-top: 6px;'>Combined mass REAL {dst['combined']['REAL']:.2f}, "
+            f"FAKE {dst['combined']['FAKE']:.2f}, residual ignorance {dst['residual_ignorance']:.2f}; "
+            f"conflict K = {dst['conflict']:.2f}; calibrated with {dst['calibrator']}. "
+            "&ldquo;Effect&rdquo; = P(fraud) with all sources minus P(fraud) with that source left out. "
+            f"{html.escape(dst['note'])}</p>",
+            unsafe_allow_html=True,
+        )
+
+        # DistilBERT (REVIEW zone only)
+        bert = xai.get("distilbert")
+        if bert:
+            g = bert["gate_weights"]
+            st.markdown(
+                "<p style='font-weight: 700; margin: 16px 0 4px 0;'>DistilBERT (consulted because the case was borderline)</p>"
+                f"<p style='font-size: 13px; margin-bottom: 8px;'>Integrated Gradients ({html.escape(bert['method'])}, "
+                f"{bert['n_steps']} steps) on the fraud log-odds; the gate relied {g['text']:.0%} on text and "
+                f"{g['metadata']:.0%} on metadata. Completeness residual {bert['completeness_residual']:+.3f} "
+                f"({bert['completeness_relative']:.1%} of the output change). Attention weights are not used as an explanation."
+                f"{' The text was truncated to 512 tokens.' if bert['truncated'] else ''}</p>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                "<div style='background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 14px; "
+                "font-size: 14px; line-height: 1.8; max-height: 300px; overflow-y: auto;'>"
+                f"{highlight_html(res.get('scoring_text', ''), word_scores_from_ig(bert['words']), key=m4_clean)}</div>",
+                unsafe_allow_html=True,
+            )
+
+        # Faithfulness check, on demand
+        st.markdown("<p style='font-weight: 700; margin: 16px 0 4px 0;'>Faithfulness check</p>", unsafe_allow_html=True)
+        st.markdown(
+            "<p style='font-size: 13px;'>Deletes the top 5 / 10 fraud-leaning words and re-scores the posting with M4, "
+            "next to deleting the same number of random words. A faithful explanation should lower P(fraud) more.</p>",
+            unsafe_allow_html=True,
+        )
+        if st.button("Verify explanation", type="secondary"):
+            from xai import deletion_test
+            with st.spinner("Re-scoring with words removed..."):
+                full = detector.predict(res.get("scoring_text", ""), res.get("fields") or None)
+                full["xai"] = xai
+                st.session_state.deletion_result = deletion_test(
+                    detector, res.get("scoring_text", ""), res.get("fields") or None, full)
+        dres = st.session_state.deletion_result
+        if dres:
+            drows = "".join(
+                f"<tr><td>{r['k']}</td><td>{html.escape(', '.join(r['deleted']) or '-')}</td>"
+                f"<td>{r['p_fake_before']:.3f} &rarr; {r['p_fake_after']:.3f} ({r['delta'] * 100:+.1f} pts)</td>"
+                f"<td>{r['p_fake_after_random']:.3f} ({r['delta_random'] * 100:+.1f} pts)</td></tr>"
+                for r in dres["results"]
+            )
+            st.markdown(
+                "<table class='entity-table'><tr><th>k</th><th>Deleted words</th><th>P(fraud) after deleting them</th>"
+                f"<th>After deleting k random words</th></tr>{drows}</table>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            "<p style='font-size: 12px; color: #805232; margin-top: 10px;'>" +
+            " ".join(html.escape(c) for c in xai["summary"]["caveats"]) + "</p>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # 11. Phone Verification (Objective 3 + DST)
     st.markdown('<div class="ui-card"><div class="ui-card-title">3. Phone Verification</div>', unsafe_allow_html=True)
@@ -575,14 +773,18 @@ if res:
 
     st.markdown(
         "<p style='font-size: 13px;'>The call runs over WebRTC. Before starting, run "
-        "<code>python whisper_Test/call_bridge.py</code> and <code>node webrtc-call/server/server.js</code>. "
-        "The link to answer the call appears here once the questions are ready.</p>",
+        "<code>python whisper_Test/call_bridge.py</code> and <code>node webrtc-call/server/server.js</code> "
+        "(or <code>start_all.sh</code> / <code>start_all.ps1</code> without <code>--no-voice</code>). "
+        "The link to answer the call appears here once the questions are ready.</p>"
+        "<p style='font-size: 12px; color: #805232;'>The combined post-call verdict (M4 text score + voice evidence, "
+        "Dempster-Shafer, Objective 4 bands) is <b>not validated</b>: there is no labelled phone-call dataset. "
+        "Only M4's text score is validated.</p>",
         unsafe_allow_html=True,
     )
 
     verify_clicked = st.button("Verify by Phone", type="primary", use_container_width=True)
 
-    # Run once per analysis: either the user clicked, or Obj2 flagged high risk
+    # Run once per analysis: either the user clicked, or M4 flagged high risk
     start_call = verify_clicked or st.session_state.auto_call_pending
     st.session_state.auto_call_pending = False
 
@@ -635,12 +837,14 @@ if res:
             extra_rows += f"<tr><th>Calibrated P(Real)</th><td>{vres['calibrated_confidence'] * 100:.1f}%</td></tr>"
         if vres.get("override_reason"):
             extra_rows += f"<tr><th>Override</th><td>{html.escape(vres['override_reason'])}</td></tr>"
+        if vres.get("validated") is False:
+            extra_rows += "<tr><th>Validation</th><td>NOT validated (no labelled call data)</td></tr>"
 
         v_col1, v_col2 = st.columns([1, 1], gap="medium")
         with v_col1:
             st.markdown(
                 f"""
-                <div class="{verdict_class}">COMBINED VERDICT: {html.escape(verdict.upper())}</div>
+                <div class="{verdict_class}">COMBINED VERDICT (UNVALIDATED): {html.escape(verdict.upper())}</div>
                 <table class="entity-table" style="margin-top: 12px;">
                     <tr><th>Belief: Real</th><td>{(vres.get('final_belief_real') or 0.0) * 100:.1f}%</td></tr>
                     <tr><th>Belief: Fake</th><td>{(vres.get('final_belief_fake') or 0.0) * 100:.1f}%</td></tr>
@@ -660,7 +864,7 @@ if res:
                 reason = vres.get("voice_error") or call.get("skip_reason") or call.get("error") or "unknown"
                 call_html = (
                     "<p style='margin: 0; line-height: 1.5; font-size: 14px;'>The call produced no usable signals "
-                    f"(reason: {html.escape(str(reason))}). The verdict above uses database evidence only.</p>"
+                    f"(reason: {html.escape(str(reason))}). The verdict above uses M4's text score only.</p>"
                 )
             st.markdown("<p style='font-weight: 700; margin-bottom: 8px;'>Call Outcome</p>", unsafe_allow_html=True)
             st.markdown(
@@ -675,31 +879,26 @@ if res:
     st.markdown("</div>", unsafe_allow_html=True)
 
     # 12. Expandable Verification Details
-    ev_docs = res.get("retrieved_evidence", [])
-    with st.expander(f"Retrieved Evidence from Database ({len(ev_docs)} match{'es' if len(ev_docs) != 1 else ''})", expanded=False):
-        if ev_docs:
-            for idx, doc in enumerate(ev_docs, 1):
-                meta = doc.get("metadata", {})
-                src = meta.get("source_type", "unknown")
-                is_fraud = meta.get("fraudulent", None)
-                fraud_badge = "FRAUDULENT RECORD" if is_fraud == 1 else ("LEGITIMATE RECORD" if is_fraud == 0 else "")
-                dist = doc.get("distance", 0.0)
-                title = meta.get("title") or meta.get("company_name") or "Record"
-
-                st.markdown(
-                    f"""
-                    <div class="evidence-card">
-                        <div class="evidence-meta">
-                            [#{idx}] {src} | Dist: {dist:.4f} {f'| {fraud_badge}' if fraud_badge else ''}
-                        </div>
-                        <div style="font-weight: 700; color: #326080; margin-bottom: 4px;">{title}</div>
-                        <div class="evidence-content">{doc.get('page_content', '')}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown("<div style='color: #805232;'>No matching evidence records returned from FAISS vector search.</div>", unsafe_allow_html=True)
+    nbrs = res.get("neighbours", [])
+    n_fraud = sum(n["label"] for n in nbrs)
+    with st.expander(f"Similar Known Postings ({len(nbrs)} nearest training postings, {n_fraud} fraudulent)", expanded=False):
+        st.markdown(
+            "<p style='font-size: 13px;'>Nearest EMSCAD training postings by MiniLM cosine similarity. Each one is a "
+            "Dempster-Shafer source in M4 (weighted by similarity and label).</p>",
+            unsafe_allow_html=True,
+        )
+        for n in nbrs:
+            badge = "FRAUDULENT POSTING" if n["label"] == 1 else "LEGITIMATE POSTING"
+            st.markdown(
+                f"""
+                <div class="evidence-card">
+                    <div class="evidence-meta">[#{n['rank']}] training posting {n['index']} | similarity {n['similarity']:.3f} | {badge}</div>
+                    <div style="font-weight: 700; color: #326080; margin-bottom: 4px;">{html.escape(n.get('title') or 'Untitled posting')}</div>
+                    <div class="evidence-content">{html.escape(n.get('snippet') or '')}{'...' if n.get('snippet') else ''}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
     ocr_prev = res.get("ocr_preview", "")
     if ocr_prev:
@@ -707,7 +906,7 @@ if res:
             st.markdown(
                 f"""
                 <div style="background-color: #FFF1E7; border: 1px solid #326080; border-radius: 4px; padding: 12px; font-family: monospace; font-size: 13px; line-height: 1.4; color: #326080;">
-                    {ocr_prev}...
+                    {html.escape(ocr_prev)}...
                 </div>
                 """,
                 unsafe_allow_html=True,

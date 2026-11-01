@@ -4,14 +4,18 @@
 #
 #   ./start_all.sh              start everything, including the public call link
 #   ./start_all.sh --no-tunnel  skip the Cloudflare tunnel (company answers on this PC)
+#   ./start_all.sh --no-voice   start only the Streamlit app (image/text -> M4 verdict + XAI);
+#                               no Ollama, no voice services
+#
+# The verdict (M4) never needs Ollama; Ollama is started only for the voice agent.
 #
 # Services:
-#   Ollama            :11434  local LLM (reused if already running, e.g. systemd)
+#   Ollama            :11434  local LLM for the voice agent (reused if already running)
 #   WhisperLive       :9090   speech-to-text for the company's answers
 #   call_bridge.py    :5000   question generation, TTS, answer processing
 #   server.js         :3000   WebRTC call page + signalling
 #   cloudflared               public HTTPS link to :3000 for the "company"
-#   Streamlit         :8501   the app
+#   Streamlit         :8501   the app (runs from .venv-m4, or $M4_VENV)
 #
 # Logs go to logs/<service>.log. Ctrl+C stops everything this script started.
 
@@ -19,14 +23,17 @@ set -uo pipefail
 set -m  # each background job gets its own process group, so we can stop its children too
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV="$ROOT/whisper_Test/.venv"
+VENV="$ROOT/whisper_Test/.venv"          # voice services (WhisperLive, call bridge)
+APP_VENV="${M4_VENV:-$ROOT/.venv-m4}"     # Streamlit + M4 (scikit-learn pinned to the bundle)
 LOG_DIR="$ROOT/logs"
 USE_TUNNEL=1
+USE_VOICE=1
 
 for arg in "$@"; do
     case "$arg" in
         --no-tunnel) USE_TUNNEL=0 ;;
-        -h|--help) sed -n '3,17p' "$0"; exit 0 ;;
+        --no-voice) USE_VOICE=0; USE_TUNNEL=0 ;;
+        -h|--help) sed -n '3,22p' "$0"; exit 0 ;;
         *) echo "Unknown option: $arg (try --help)"; exit 1 ;;
     esac
 done
@@ -93,17 +100,26 @@ start() {
 }
 
 # ── Preflight ──────────────────────────────────────────────────────────
-if [[ ! -f "$VENV/bin/activate" ]]; then
-    echo "✗ Virtualenv not found at $VENV"; exit 1
+APP_PY="$APP_VENV/bin/python"
+if [[ ! -x "$APP_PY" ]]; then
+    echo "✗ App virtualenv not found at $APP_VENV (see README: python -m venv .venv-m4 && pip install -r requirements.txt)"; exit 1
 fi
-# shellcheck disable=SC1091
-source "$VENV/bin/activate"
+if [[ ! -f "$ROOT/models/mravplus_bundle.joblib" && -z "${M4_MODEL_DIR:-}" ]]; then
+    echo "✗ models/mravplus_bundle.joblib not found (see README: Model files)"; exit 1
+fi
 
-for cmd in node ollama; do
-    command -v "$cmd" >/dev/null || { echo "✗ '$cmd' is not installed"; exit 1; }
-done
-if (( USE_TUNNEL )) && ! command -v cloudflared >/dev/null; then
-    echo "✗ cloudflared is not installed (or run with --no-tunnel)"; exit 1
+if (( USE_VOICE )); then
+    if [[ ! -f "$VENV/bin/activate" ]]; then
+        echo "✗ Voice virtualenv not found at $VENV (or run with --no-voice)"; exit 1
+    fi
+    # shellcheck disable=SC1091
+    source "$VENV/bin/activate"
+    for cmd in node ollama; do
+        command -v "$cmd" >/dev/null || { echo "✗ '$cmd' is not installed (or run with --no-voice)"; exit 1; }
+    done
+    if (( USE_TUNNEL )) && ! command -v cloudflared >/dev/null; then
+        echo "✗ cloudflared is not installed (or run with --no-tunnel)"; exit 1
+    fi
 fi
 
 mkdir -p "$LOG_DIR"
@@ -111,22 +127,27 @@ cd "$ROOT" || exit 1
 
 echo "Starting Fake Job Detection services (logs in logs/)"
 
-# ── Ollama ─────────────────────────────────────────────────────────────
-if curl -s -m 2 http://localhost:11434/api/tags >/dev/null; then
-    echo "  ollama        ✓ already running"
-else
-    start ollama 11434 30 ollama serve
+if (( USE_VOICE )); then
+    # ── Ollama (voice agent only: question generation / answer analysis) ──
+    if curl -s -m 2 http://localhost:11434/api/tags >/dev/null; then
+        echo "  ollama        ✓ already running"
+    else
+        start ollama 11434 30 ollama serve
+    fi
+
+    # ── WhisperLive (speech-to-text) ───────────────────────────────────
+    # First run downloads model weights, so allow extra time.
+    start whisper 9090 300 python -u whisper_Test/server.py
+
+    # ── Call bridge ────────────────────────────────────────────────────
+    start call_bridge 5000 120 python -u whisper_Test/call_bridge.py
+
+    # ── WebRTC call page (run 'npm install' in webrtc-call/server once) ──
+    if [[ ! -d webrtc-call/server/node_modules ]]; then
+        echo "✗ webrtc-call/server/node_modules missing: run 'npm install' in webrtc-call/server"; exit 1
+    fi
+    start webrtc 3000 30 bash -c 'cd webrtc-call/server && exec node server.js'
 fi
-
-# ── WhisperLive (speech-to-text) ───────────────────────────────────────
-# First run downloads model weights, so allow extra time.
-start whisper 9090 300 python -u whisper_Test/server.py
-
-# ── Call bridge ────────────────────────────────────────────────────────
-start call_bridge 5000 120 python -u whisper_Test/call_bridge.py
-
-# ── WebRTC call page ───────────────────────────────────────────────────
-start webrtc 3000 30 bash -c 'cd webrtc-call/server && exec node server.js'
 
 # ── Cloudflare tunnel ──────────────────────────────────────────────────
 TUNNEL_URL=""
@@ -147,7 +168,7 @@ if (( USE_TUNNEL )); then
 fi
 
 # ── Streamlit ──────────────────────────────────────────────────────────
-start streamlit 8501 120 streamlit run app.py --server.headless true
+start streamlit 8501 180 "$APP_PY" -m streamlit run app.py --server.headless true
 
 # ── Summary ────────────────────────────────────────────────────────────
 cat <<EOF
@@ -156,16 +177,20 @@ cat <<EOF
   All services running.
 
   App (you):            http://localhost:8501
-  Call page (you):      http://localhost:3000
 EOF
+if (( USE_VOICE )); then
+    echo "  Call page (you):      http://localhost:3000"
+fi
 if [[ -n "$TUNNEL_URL" ]]; then
     echo "  Call page (company): $TUNNEL_URL"
     echo "                       ↑ send this link; it changes every run"
 fi
-cat <<EOF
+(( USE_VOICE )) && cat <<EOF
 
   Before analysing an offer, open the call page on both sides
   and click Join on each.
+EOF
+cat <<EOF
 
   Logs: logs/<service>.log     Stop everything: Ctrl+C
 ══════════════════════════════════════════════════════════════
