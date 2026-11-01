@@ -2,7 +2,7 @@
   "linear_identity": {
     "n": 32,
     "max_identity_error": 1.3322676295501878e-15,
-    "max_token_sum_error": 1.1102230246251565e-15
+    "max_token_sum_error": 1.3322676295501878e-15
   },
   "integrated_gradients": [
     {
