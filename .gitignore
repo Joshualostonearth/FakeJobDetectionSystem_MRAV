@@ -56,3 +56,14 @@ faiss_index.zip
 
 # Claude Code worktrees (separate git checkouts)
 .claude/worktrees/
+
+# Never commit: datasets, model weights, secrets, node deps (M4 integration rules)
+data/*.csv
+data/splits/
+*.joblib
+*.pt
+*.pkl
+webrtc-call.zip
+node_modules/
+.venv-m4/
+models/
