@@ -1,0 +1,298 @@
+offer_id,company_name,job_role,recruiter_email,domain,location,source_type,doc_content,is_fraudulent,true_label,category,scam_type,date,red_flags,image_files,source_publisher,source_url
+RW_FAKE_001,UMBC Career Services (impersonated),Administrative Assistant / Spring 2021 Internship (part-time),bartonm078@gmail.com,gmail.com,Remote,email,"From: career-services@umbc.edu
+Subject: Administrative Assistant Position  - Part-Time
+
+<username>
+  You have been offered a Spring 2021 Internship opportunity at the convenience of your home or, Which serve as a gateway to pay all expenses incurred during this pandemic. This opportunity should be done at leisure taking at most 1hr/day, 2-3 times a week.
+Please send your resume to;
+Email: bartonm078@gmail.com  for the job description.
+Career Services
+UMBC.",1,0,Real-world Scam,fake internship / impersonated career centre,2021-03-15,spoofed look-alike sender (career-services@ vs careers@umbc.edu); reply to personal Gmail; unsolicited offer; poor grammar; no job details,,UMBC Division of Information Technology,https://doit.umbc.edu/post/100045/
+RW_FAKE_002,"University of Maryland, Baltimore County (impersonated)",Research Administrative Assistant (GES student),talktosharoldiaz@gmail.com,gmail.com,Remote,email,"Subject: UMBC Student Employment!
+
+University of Maryland, Baltimore County is seeking
+a Research Administrative Assistant /services of a
+competent Geography and Environmental Systems (GES) Student,
+Administrative Assistant to work Part-time and get paid $350 weekly.
+Tasks will be carried out remotely. If interested, Do text your name to
+(443) 437-4263 so as to proceed
+Best Regards,
+Dr Abigail Granger
+1000 Hilltop Circle
+Baltimore, MD 21250
+Phone: (443) 437-4263 | Fax: (410) 455-3322",1,0,Real-world Scam,fake student job / impersonated professor (text-me),2021-03-24,sent from Gmail while signed as faculty; apply by text message; $350/week for vague part-time work; odd capitalisation,,UMBC Division of Information Technology,https://doit.umbc.edu/post/100207/
+RW_FAKE_003,UMBC (impersonated: Prof. Fei Cheng / Prof. J. Donald Moon),Part-time Administrative / Research Assistant,nengenengab@gmail.com,gmail.com,Remote,email,"From: Prof Fei Cheng <nengenengab@gmail.com>
+Subject: Part- time administrative Assistants
+
+The services of a student administrative/ research assistant is urgently required to work part-time and get paid $300 weekly.
+This position is open to under- graduate students only and tasks will be carried out remotely.
+If interested, reply via this email address with a copy of your updated resume or a functional phone number for further details or text the center director on (623) 455-5986.
+sincerely
+Professor. Moon, J. Donald
+Administrative Assistants.",1,0,Real-world Scam,fake student job / impersonated professor,2021-04-02,Gmail sender; sender name differs from signature; urgency ('urgently required'); asks for phone number / text; grammar errors,,UMBC Division of Information Technology,https://doit.umbc.edu/post/100734/
+RW_FAKE_004,UMBC 'Information Technology Center' (non-existent),Student Administrative Assistant,talktojoelrn@gmail.com,gmail.com,Remote,email,"From: CAMPUS JOBS <talktojoelrn@gmail.com>
+Subject: UMBC STUDENT HIRE
+
+The services of a student administrative assistant is urgently required to work Part-time and get paid weekly.
+ This position is open to UMBC under- graduate students only and tasks will be carried out remotely.
+If interested, reply via this email address with a copy of your updated resume and semester schedule to proceed.
+Best regards
+Prof. Alissa Jacobs
+ASSISTANT DIRECTOR, INFORMATION TECHNOLOGY CENTER",1,0,Real-world Scam,fake student job / non-existent department,2021-04-01,Gmail sender; department does not exist; urgency; no pay amount / duties; grammar errors,,UMBC Division of Information Technology,https://doit.umbc.edu/post/100733/
+RW_FAKE_005,UMBC Institutional Research (impersonated),Research Administrative Assistant (HAPP Dept),,,Remote,email,"Subject: UMBC HAPP Employment
+
+University of Maryland, Baltimore County is seeking
+a Research Administrative Assistant /services of a
+competent HAPP Dept Student,
+Administrative Assistant to work Part-time and get paid
+$350 weekly. Tasks will be carried out remotely. If interested,
+Do text your name to (443) 437-4263 so as to proceed
+Best Regards,
+Dr Robert Williams
+Assistant Director, Decision Support
+Institutional Research
+Administration Bldg, Room 405
+CA84489
+(443) 437-4263",1,0,Real-world Scam,fake student job -> gift card / fake check,2021-04-22,apply by text; same phone number as RW_FAKE_002 with a different 'Dr' name; $350/week vague work; later stage: gift cards + mobile-deposit fake check (per source),,UMBC Division of Information Technology,https://doit.umbc.edu/post/101180/
+RW_FAKE_006,UMBC (impersonated: Prof. Marina Adler),Student Administrative Assistant (Fall 2021),,,Remote,email,"The services of a student administrative assistant is urgently required to work part-time for the Fall 2021 semester and get paid $300 weekly. Tasks will be carried out remotely and work time is 7hrs/week.If interested, send a copy of your updated resume and a functional whatsapp number to our Department of Psychology via this email address to proceed.
+Regards
+Marina Adler
+Professor
+Language, Literacy, and Culture 
+Public Policy
+Sociology, Anthropology, and Public Health
+Office: Public Policy 232",1,0,Real-world Scam,fake student job / impersonated professor (WhatsApp),2021-09-01,asks for WhatsApp number; signature department (Sociology) contradicts body (Psychology); $300/week for 7 hrs; urgency,,UMBC Career Center,https://my3.my.umbc.edu/groups/careers/posts/111934
+RW_FAKE_007,UMBC Career Services (compromised account),"Administrative Assistant (part time, 15-20 hrs)",drbm789@gmail.com,gmail.com,Remote,email,"From: Career Services <tonim1@umbc.edu>
+Date: Mon, Nov 13, 2023 at 10:51 AM
+Subject: Job Opening!
+
+An administrative assistant to perform various administrative tasks like making or receiving payment, keeping record and processing paperwork when necessary, with a good weekly pay is needed, Please find the position and some basic information below.
+Job Description
+Administrative Assistant
+Work remotely: Yes
+Job Type: Part time (15 to 20 hours weekly)
+Duties:
+> Running personal errands.
+> Making Purchases, receiving and making payment
+> Perform official assignment to detail/ instruction.
+This position will be a home-based and flexible part time job, You can be working from home, School or any location
+Interested in this position, Send your resume to drbm789@gmail.com. Then text (443) 267 2747 for updates.",1,0,Real-world Scam,personal-errands / payment-handling (money mule) job,2023-11-13,sent from a compromised .edu account; reply to Gmail; duties involve receiving/making payments (money-mule); text for updates,,UMBC Career Center,https://careers.umbc.edu/intern-of-the-week/post/137064
+RW_FAKE_008,UMBC Office for Students with Disabilities (impersonated: 'Prof. Annette Bonner'),Interim Personal Assistant,boseannette85@gmail.com,gmail.com,Remote,email,"From: Lynda Box <Lynda.Box@anu.edu.au>
+Subject: University of maryland, baltimore county apply for spring winter p/t jobs work from school/home offer for students 2021
+
+I am Annette Bonner, my specializations are foot and ankle, athletic injuries, shoulder and elbow, trauma and
+fractures, sports medicine, and arthroscopic surgery. Also interested in procedures of replacing shoulders and knees.
+This message was sent to your email because you have an opportunity from the University Office for Students with
+Disabilities to work with me to help and assist students with disabilities frustrated with ignorance and lack of services
+but as my interim personal assistant. I can assure you this employment is very simple, all you need to do are purchase
+some items when needed, mailing of letters, and making payments at Walmart and this employment won't take much of
+your time at least two hours daily and three times in a week for ($450).
+I am unable to meet up with you for an interview since I am away currently helping the disabled students in
+Australia, for all the purchases and tasks to get done on my behalf while I am still away, you will be paid in advance.
+Upon my arrival we will discuss the possibility of making this a long-term employment that if you do really impress me
+with your services while I am away. My arrival is scheduled for the end of January 2021.
+To Apply : Please forward all applications including Full name, Address, Alternate email (different from school
+email) and mobile number Attached Resume( Its okay if you do not have resume to attach). Please its highly important
+that you reply and send above information to my personal email address(boseannette85@gmail.com) so i can respond
+back to you ASAP.
+Best Regards
+Professor Annette Bonner",1,0,Real-world Scam,personal assistant / purchases & payments (fake check),2021-01-13,sender (anu.edu.au) differs from signer and reply address; no interview; paid in advance; purchases/payments at Walmart; asks for address + alternate email; urgency,,UMBC Division of Information Technology,https://doit.umbc.edu/post/98946/
+RW_FAKE_009,"Unknown ('Mr Jared', claims UH alumnus)",Administrative/Personal Assistant,,,Unspecified,email,"Hello i have a Job for you,  I contacted your school admin at  UNIVERSITY OF HOUSTON ; I graduated from there. I explained that I was looking for an Administrative/Personal Assistant and your email was sent to me, they said you are an honest person. This job is flexible so you can perform the tasks during your spare time outside of school and the position is extremely rewarding. Get back to me by texting me on this number (862) 267-XXXX ASAP if you are interested in more information.
+Regards,
+Mr  Jared",1,0,Real-world Scam,personal assistant (check scam lead),,unsolicited; false claim that school shared your email; flattery ('honest person'); text a number ASAP; no company named; poor grammar,,"University of Houston, Bauer College Rockwell Career Center",https://careercenter.bauer.uh.edu/?p=14900
+RW_FAKE_010,UCLA Department of English (impersonated),Virtual Administrative Support Intern - Remote (Paid),,,Remote,pdf_flyer,"Subject: Remote Internships — Dept. of English
+[email body blank; PDF attachment:]
+
+Department of English
+University of California, Los Angeles
+Virtual Administrative Support Intern — Remote (Paid)
+Overview
+The Department of English invites applications from current students and recent graduates for a part-time remote internship supporting faculty administrative work. This role provides hands-on experience in academic office administration and project coordination.
+Position Details
+• Role: Virtual Administrative Support Intern
+• Compensation: $550 weekly
+• Hours: 8 hours per week (flexible to accommodate coursework)
+• Skills: Basic computer proficiency, strong organization and written communication
+How to Apply
+Send the following to Dr. Donka Minkova via text at (986) 283-3168 concerning the Job description and further application requirements.
+• Full name
+• School Email Address
+• Department
+Application deadline: [15 19, 2025] — positions limited; early responses encouraged.
+Dr. Donka Minkova
+Professor, Department of English
+University of California, Los Angeles
+Department of English — Los Angeles • CA 90095",1,0,Real-world Scam,fake paid internship flyer (text-to-apply),2025-09-17,blank email with PDF only; non-@ucla.edu sender; apply by SMS; $550/week for 8 hrs; malformed deadline date; scarcity urgency,images/10_ucla_english_intern_pdf_1.png;images/10_ucla_english_intern_pdf_2.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/job-scam-remote-internships-dept-english
+RW_FAKE_011,UCLA Computer Science (impersonated: Prof. Adnan Darwiche),Unspecified student role (resume requested),,,"Los Angeles, CA",email,"Subject: Clarify
+
+Dear Applicant,
+At the moment, I am experiencing a technical issue with my official university email account. While I am able to send messages from this address, I am currently unable to view or receive incoming emails sent to edu email. For this reason, if you send a message to my university
+(.edu) email here, I will unfortunately not be able to see your response.
+To ensure uninterrupted communication, I will be using my alternate email address for correspondence, and occasionally SMS for time-sensitive matters. Please direct all replies and future responses to my alternate email address so that I can receive them without delay.
+I also recommend checking your spam or filter folders, as messages may sometimes be redirected there due to this issue.
+Please rest assured that i am communicating directly from my alternative email. This notice is shared purely for transparency and to maintain continuity until the issue with my university email is fully resolved.
+Once access is restored, I will resume communication exclusively through my official university account. Do respond to my alternative email with your resume and communication skills. Please check your both edu email and alternative email you submitted inbox or filter folder.
+Thank you for your understanding and cooperation.
+Best regards,
+Professor  Adnan Darwiche
+368B Engineering 6
+Computer Science Department
+University of California
+Los Angeles, CA 90095
+UCLA",1,0,Real-world Scam,fake professor - move to alternate email,2026-05-06,'technical issue' pretext to move off .edu; SMS for 'time-sensitive' matters; check spam folder; resume to alternate email; inconsistent language,images/11_ucla_clarify_email.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/job-scam-email-subject-clarify
+RW_FAKE_012,UCLA Computer Science (impersonated: Prof. Stefano Soatto),Remote Research Assistant,vogtmrt112@gmail.com,gmail.com,Remote,email,"[Initial email]
+Sender: Shannon Riley <shanonriley999@gmail.com>
+Dear Student,
+✅ Fully Remote
+✅ Flexible Hours
+✅ Weekly Compensation
+👉 Click here to apply < Link leads to a Google Form >
+We look forward to receiving your application.
+Warm regards,
+Professor Stefano Soatto
+Department of Computer Science
+ENGINEERING VI 386A
+405 Hilgard Ave
+Los Angeles, CA 90095-1596
+UCLA
+
+[Follow-up email]
+Sender: Stefano Soatto <vogtmrt112@gmail.com>
+This message is to confirm that your inquiry was received. We appreciate your enthusiasm in seeking to join our team, and we are pleased to provide further information about the role and expectations.
+Position Overview
+Department: Computer Science
+Position Type: Remote
+Estimated Time Commitment: Less than 7 hours per week
+Compensation: $300 per week
+Work Schedule: Flexible — you may work on any day(s) of the week that best accommodate your academic schedule (typically 2–3 days per week).
+General Qualifications
+Preferred Skills & Competencies:
+Strong written and verbal communication
+Proficiency in Microsoft Office (Word, Excel, PowerPoint)
+Exceptional attention to detail and observational skills
+Essential Interpersonal Abilities:
+Active listening and critical thinking
+Professional discretion and confidentiality
+Ability to communicate clearly and persuasively
+Supportive advising and mentoring capabilities
+Experience Requirements
+No prior experience is required. You will be paired with a senior student mentor who will provide guidance and support throughout the duration of your assignments and projects.
+Application Required
+To proceed, please submit:
+A copy of your student ID card or any means of ID card
+Your most recent resume
+Additional Information
+This is a remote position, and all necessary office materials will be provided by the department. Should a formal report be required, you will be notified in advance.
+Thank you once again for your interest. We look forward to reviewing your application.
+Best regards,
+Professor Stefano Soatto
+Department of Computer Science",1,0,Real-world Scam,fake research assistant - Google Form + ID harvesting,2025-09-04,"two different Gmail senders for same 'professor'; Google Form application; asks for ID card copy; no experience needed, $300/week; no interview",images/12_ucla_soatto_research_1.png;images/12_ucla_soatto_research_2.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/fake-jobapplication-emails-impersonating-ucla-professors-research-role-remote-research
+RW_FAKE_013,UCLA Computer Science (impersonated: Prof. Allen Klinger),Part-time remote research role ($350/week stipend),allenklinger.cs@gmail.com,gmail.com,Remote,email,"Sender: Amanda Jonne <amandajonne@gmail.com>
+Subject: Join Our Research Team | UCLA
+
+The UCLA Department of Computer Science is accepting applications for part-time, remote research roles with a $350 weekly stipend.
+Eligibility:
+Open to UCLA and non-UCLA students
+Remote, up to 7 hrs/week
+Strong interest in research and detail-oriented
+To Apply:
+Email Professor Allen Klinger at allenklinger.cs@gmail.com
+Subject: UCLA Remote Research Opportunity
+Include:
+Full Name
+Email
+Department
+University
+Year of Study
+Positions are limited. Early applications encouraged.",1,0,Real-world Scam,fake research role - data harvesting,2025-09-11,Gmail sender + Gmail 'professor'; open to non-UCLA students; $350/week for 7 hrs; collects personal details; scarcity urgency,images/13_ucla_join_research_team.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/job-scam-join-our-research-team-ucla
+RW_FAKE_014,UCLA Payroll (spoofed),Sales/office role onboarding ('paycheck' for office supplies),fuucw011@gmail.com,gmail.com,Remote,email,"Sender: UCLA Payroll <@chr.ucla.edu>
+Reply-to: fuucw011@gmail.com
+Subject: Payroll
+
+Attached is your paycheck, which includes funds for office supplies as well as your initial weekly income. Once the deposit is processed, a Sales Representative will be assigned to assist you with the purchase of these items. Please proceed with a mobile deposit and ensure that you retain a copy of the transaction for your records. If you encounter any issues or need further assistance, feel free to reach out.
+Below, I have provided a concise set of instructions on how to make a mobile deposit.
+Print out and cut it to a ( check size/shape ) At the back of your check endorse by writing your
+Full name
+For Mobile Deposit Only at *financial institution name*
+Signature.
+When making a mobile deposit, ensure that you adjust the size of your paycheck to match the proportions of a check and carefully capture all the edges for the deposit.
+Once you are done, you make a mobile deposit on your mobile banking app and save a copy Thank You.
+Kevin Tang
+UCLA Payroll service",1,0,Real-world Scam,fake check / mobile deposit (onboarding stage),2025-09-05,spoofed From with Gmail Reply-To; paycheck as PDF attachment; print-and-cut check for mobile deposit; funds for 'office supplies' via assigned vendor,images/14_ucla_payroll_email.png;images/14_ucla_payroll_fake_check.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/job-scam-fake-check-payment-payroll
+RW_FAKE_015,UCLA Computer Science (impersonated: Prof. Stefano Soatto),Remote Research Associate,dckstr9@gmail.com,gmail.com,Remote,email,"Sender: Prof. Stefano Soatto <dckstr9@gmail.com>
+Subject: UCLA Remote Research Associate Position - resume and id
+
+You have been acknowledged for the role. You can expect to receive communication from HR soon. Occasionally, due to technical issues, emails may be directed to your spam or filter folders. Kindly take a moment to check those folders as well and confirm if you have received any message from HR. In the meantime, please feel free to reach out if you have any further questions.
+Let me know if you received an email from the HR department.   To prepare you ahead, the next step in supporting your assignment responsibilities, we kindly ask that you gather pricing information for the following essential office supplies:
+Atzeste Webcam 4K HD USB Autofocus PC Webcam
+Epson Projector with high-resolution capability
+Brother MFCL2710DW All-in-One Printer
+These items have been allocated to you by the department to support the effective execution of your assigned responsibilities.
+To identify the most cost-effective options and confirm availability, please conduct your search using reputable retailers such as Walmart, Amazon, or Best Buy.
+We kindly ask that you verify the pricing and delivery details electronically, and submit your findings within the hour.
+I await your response.
+Prof. Stefano Soatto
+Department of Computer Science
+404 Westwood Plaza
+Engineering VI
+Los Angeles, CA 90095-1596
+UCLA",1,0,Real-world Scam,fake research associate - equipment purchase (reimbursement scam),2025-09-05,Gmail sender; hired without interview; price out electronics (precursor to pay-and-reimburse); 'within the hour' urgency; check spam folder,images/15_ucla_research_associate_equipment.png,UCLA Office of the CISO (Phish Bowl),https://ociso.ucla.edu/news/job-scam-ucla-remote-research-associate-position
+RW_FAKE_016,Onin Staffing (name used in scam image),Remote online evaluator,,oninstaffing.com,Remote (US numbers),sms_poster,"We are hiring
+Join our professional team
+Job content Job title: remote online evaluator
+Salary: $100-$600 per day
+Working hours: 1-2 hours per day
+Time: freedom can be done at home anytime
+Job requirements: Age 25+
+If you're interested in this position, please answer 'yes' or 'interested' and I'll send you the details.
+
+[Image variant, from +1 (774) 400-6868:] Onin STAFFING / WE ARE HIRING / JOIN OUR PROFESSIONAL TEAM / Job content: • Job Title: Remote online evaluator • Salary: $100-$600 per day • Working hours: 1-2 hours per day anytime / If you are interested in this job please reply immediately ""Yes"" / www.oninstaffing.com",1,0,Real-world Scam,task scam - unsolicited 'we are hiring' MMS poster,2025-09-16,unsolicited SMS from unknown number; $100-$600/day for 1-2 hrs; vague job title; reply 'Yes' to confirm live number; no interview,images/16_sms_remote_online_evaluator.gif,Malwarebytes Labs,https://www.malwarebytes.com/blog/news/2025/09/watch-out-for-the-we-are-hiring-remote-online-evaluator-message-scam
+RW_FAKE_017,Indeed Recruitment Team (impersonated),Remote job (unspecified),,,Remote,sms,"Hello! We're the Indeed Recruitment Team. We currently have a remote job opportunity available: Work just 30 to 60 minutes a day. Earn $100 to $500 daily, with same-day payouts. Free training provided. Must be 22 years or older. If you're interested, send a message to: 1-631-365-0461 to get the full job details.",1,0,Real-world Scam,brand impersonation recruiter text (Indeed),2025-07,Indeed does not offer jobs by text; $100-$500/day for <1 hr; no job description; contact a different number,,Nomorobo,https://www.nomorobo.com/?p=752
+RW_FAKE_018,Indeed (impersonated),Remote part-time/full-time app data updater,,,Remote,sms,"Hello, I'm a recruitment assistant at Indeed. We'd like to offer you a great remote part-time/full-time job to help update app store data, increase app views and downloads, and provide you with free training. Flexible hours, working only 30 to 90 minutes a day, earning up to $800 daily.",1,0,Real-world Scam,task scam - app optimisation (Indeed impersonation),,unsolicited; 'app optimisation' task-scam wording; up to $800/day; brand impersonation,,MalwareTips,https://malwaretips.com/blogs/indeed-recruitment-text-scam/
+RW_FAKE_019,Unknown,Remote job,,,Remote,sms,Hello! We reviewed your resume and have a remote job opportunity paying up to $500/day. Reply YES for details.,1,0,Real-world Scam,generic resume-bait recruiter text,2026-04,claims to have your resume; up to $500/day; no company named; reply YES,,Nomorobo (honeypot capture),https://www.nomorobo.com/?p=1516
+RW_FAKE_020,Unnamed internship company (India),"Intern (remote, client project)",,,India (Jaipur candidate),offer_letter,"Annexure – A
+Salary structures can be bifurcated as under:
+Basic Pay | Rs. | 22,500/- Per Month.
+Performance Incentives | Rs. | As per work performance
+Internet Allowances | Rs. | 500/- Per Month.
+Gross Salary | Rs. | 23,000/- Per Month.
+Total In-hand salary : Rs. 23,000/- Per Month
+You will be assigned a client and project upon onboarding. A stipend will be provided upon successful completion of the assigned project
+To ""CONFIRM"" your enrolment, you need to pay 1594/- the Internship fees online through the following link Internship Form
+through the payment method shared.
+Upon successful payment confirmation, a confirmation email will be sent immediately. Login credentials and complete onboarding details, including the platform link, internship session access, and mentor information, will be shared by End of Day.
+Flexible Joining Date: You may choose your joining date as per your convenience.",1,0,Real-world Scam,pay-to-join internship (India),2026-05-23,"pay Rs 1,594 'internship fee' to confirm; 'performance incentives' listed with no amount; stipend only after project completion; flexible joining date; no company identifiers (CIN/address)",images/20_india_internship_fee_offer_letter.jpg,Business Today (from X post by @thepoonam0914),https://www.businesstoday.in/latest/trends/story/company-ko-pocket-money-chahiye-techie-shares-rs23000-internship-offer-letter-but-with-an-unexpected-demand-533454-2026-05-27
+RW_FAKE_021,Montclair State University 'Job Placement & Student Services' (non-existent),Part-Time Administrative Assistant,[redacted Gmail in source],gmail.com,Remote (work from home or on campus),email_poster,"Subject: Career Opening
+From: Student Center
+
+MONTCLAIR STATE UNIVERSITY
+Job Placement & Student Services
+
+Job Application – Part-Time Administrative Assistant
+
+The Montclair State University, through its Job Placement & Student Services office, is seeking a reliable, detail-oriented individual to fill a Part-Time Administrative Assistant position. This is a remote role with a flexible schedule, requiring approximately 5–7 hours per week.
+
+Position Details
+• Job Type: Part-Time
+• Compensation: $600 per week
+• Schedule: Flexible (approximately 5–7 hours per week)
+• Location: Remote (work from home or on campus)
+
+Key Responsibilities & Qualifications
+• Communicate effectively via email and text
+• High school diploma or equivalent required
+• Reliable internet connection
+• Strong organizational and time-management skills
+• Ability to work independently
+• Excellent written and verbal communication skills
+
+Application Instructions
+1. TO APPLY; CLICK HERE
+2. Email your resume to: [redacted]
+
+Application Review
+
+Applications will be reviewed within 2–24 hours of submission.
+
+Job Placement & Student Services
+Montclair State University",1,0,Real-world Scam,fake campus job / non-existent department,2026-05,external sender with 'Student Center' display name; department does not exist; $600/week for 5-7 hrs; high-school diploma only; vague 'CLICK HERE' link; 2-24 hr review urgency,images/21_montclair_career_opening_poster.png;images/21_montclair_career_opening_page.png,Montclair State University IT (Phish Alert),https://inside.montclair.edu/news/career-opening-part-time-administrative-assistant-job-email
