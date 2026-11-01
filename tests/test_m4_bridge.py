@@ -196,3 +196,49 @@ def test_ocr_offer_letter_entities():
 def test_label_value_stays_on_its_line():
     e = extract_entities("Offer from Acme Ltd\nSigned by:\nJane Candidate\nRecruiter: Tom Lee")
     assert e["recruiter_name"] == "Tom Lee"
+
+
+def test_red_flags_rules():
+    from red_flags import find_red_flags
+    fee = find_red_flags('To "CONFIRM" your enrolment, you need to pay 1594/- the Internship fees online')
+    assert [f["id"] for f in fee] == ["upfront_fee"]
+    assert find_red_flags("There is no registration fee. Pay is $15/hr. We offer gift cards as perks.") == []
+    chat = find_red_flags("Please contact our manager on WhatsApp to start today.")
+    assert [f["id"] for f in chat] == ["off_platform_chat"]
+    mail = find_red_flags("Department of Computer Science, UCLA", {"recruiter_email": "dckstr9@gmail.com"})
+    assert [f["id"] for f in mail] == ["free_mail_institution"]
+
+
+def test_red_flags_raise_risk_one_step():
+    import pipeline_bridge as pb
+    text = ("Software Engineer II - Backend (Python). Acme Analytics, Austin, TX. Full-time.\n"
+            "We are looking for a backend engineer to build and maintain data pipelines and REST services in\n"
+            "Python and PostgreSQL. Requirements: 3+ years of professional experience, familiarity with AWS,\n"
+            "code review and testing practices. Benefits: health, dental and vision insurance, 401(k) match,\n"
+            "20 days PTO. Apply through our careers page at careers.acmeanalytics.com; interviews are held\n"
+            "with the engineering team over two rounds.")
+    clean = pb.handle_ui_submission(None, text, with_xai=False)
+    assert clean["risk_level"] == clean["m4_risk_level"] == "LOW RISK" and clean["red_flags"] == []
+    flagged = pb.handle_ui_submission(None, text + " Contact our HR on WhatsApp to proceed.", with_xai=False)
+    assert flagged["m4_risk_level"] == "LOW RISK"
+    assert flagged["risk_level"] == "MEDIUM RISK" and flagged["voice_recommended"]
+    assert flagged["final_verdict"] == "NOT FAKE"  # verdict and P(fraud) are M4's
+    assert any(f.startswith("RED FLAG:") for f in flagged["flags"])
+    # a borderline (MEDIUM) offer with a red flag becomes HIGH RISK and starts the call; verdict unchanged
+    # EasyOCR text of a real pay-to-join internship letter (Annexure A, Rs 1,594 fee)
+    letter = ("Annexure\nA\nstructures can be bifurcated as under:\nBasic\nRs:\n22,500/- Per Month\n"
+              "Performance Incentives\nRs:\nAs per work performance\nInternet Allowances\nRs:\ns00/- Per Month_\n"
+              "Gross Salary\nRs:\n23,000/- Per Month:\nTotal In-hand\nRs. 23,000/- Per Month\n"
+              "You will be assigned a client and project upon onboarding: A stipend will be provided\n"
+              "upon successful completion of the assigned project\n"
+              "To \"CONFIRM\" your enrolment; YOu need to pay 1594/- the Internship fees\n"
+              "online through the following Jink Internship Eorm\nthrough the payment method shared:\n"
+              "Upon successful payment confirmation, a confirmation email will be sent\n"
+              "immediately Login credentials and complete onboarding details, including\n"
+              "the platform link, internship session access, and mentor information, will\n"
+              "be shared by End of\nFlexible\nJoining Date: You may choose your joining date as per your\n"
+              "convenience\nSalary\nPay\nsalary\nDay:")
+    r = pb.handle_ui_submission(None, letter, with_xai=False)
+    assert r["m4_risk_level"] == "MEDIUM RISK", r["m4_risk_level"]
+    assert r["risk_level"] == "HIGH RISK" and r["auto_call"]
+    assert r["final_verdict"] == "NOT FAKE"

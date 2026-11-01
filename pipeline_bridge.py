@@ -28,6 +28,7 @@ import uuid
 from typing import Any, Callable, Dict, List, Optional
 
 from entity_extractor import enrich_with_llm, extract_entities, has_job_offer, strip_source_tags
+from red_flags import find_red_flags
 
 # Post-call verdict (Objective 4 bands, reused for the voice fusion) -> risk level shown in the UI
 VERDICT_TO_RISK_LEVEL = {
@@ -41,6 +42,8 @@ VERDICT_TO_RISK_LEVEL = {
 VOICE_VERIFICATION_RISK_LEVELS = ("HIGH RISK", "MEDIUM RISK")
 # Risk levels that start the verification call without waiting for the user
 AUTO_CALL_RISK_LEVELS = ("HIGH RISK",)
+# A rule-based red flag (red_flags.py) raises M4's risk level one step; the verdict is unchanged
+RED_FLAG_RAISE = {"LOW RISK": "MEDIUM RISK", "MEDIUM RISK": "HIGH RISK"}
 
 M4_LIMITATION = (
     "M4 was trained and tested on structured EMSCAD job postings. Poster / OCR text is unstructured, "
@@ -146,6 +149,17 @@ def _flags(m4: Dict[str, Any], verdict: Dict[str, str]) -> List[str]:
     return flags
 
 
+def _red_flag_messages(red_flags: List[Dict[str, str]], m4_risk_level: str) -> List[str]:
+    msgs = [f"RED FLAG: {f['label']} (\"{f['evidence']}\")." for f in red_flags]
+    raised = RED_FLAG_RAISE.get(m4_risk_level)
+    if red_flags and raised:
+        effect = "a verification call starts automatically" if raised in AUTO_CALL_RISK_LEVELS else \
+            "a verification call is recommended"
+        msgs.append(f"NOTE: M4 alone rated this {m4_risk_level}; the red flags above raise it to {raised}, so "
+                    f"{effect}. M4's verdict and P(fraud) are unchanged.")
+    return msgs
+
+
 def handle_ui_submission(
     image_file: Any,
     user_text: str,
@@ -191,6 +205,12 @@ def handle_ui_submission(
     detector = detector or get_detector()
     m4 = detector.predict(scoring_text, fields)
     verdict = m4_verdict(m4)
+    m4_risk_level = verdict["risk_level"]
+    red_flags = find_red_flags(scoring_text, entities)
+    if red_flags:
+        # Rules never touch M4's verdict or P(fraud); they raise the risk one level, so LOW asks for a
+        # verification call and MEDIUM starts it automatically
+        verdict = {**verdict, "risk_level": RED_FLAG_RAISE.get(m4_risk_level, m4_risk_level)}
 
     xai = None
     if with_xai:
@@ -210,7 +230,9 @@ def handle_ui_submission(
         "zone": m4["zone"],
         "voice_recommended": verdict["risk_level"] in VOICE_VERIFICATION_RISK_LEVELS,
         "auto_call": verdict["risk_level"] in AUTO_CALL_RISK_LEVELS,
-        "flags": _flags(m4, verdict),
+        "m4_risk_level": m4_risk_level,
+        "red_flags": red_flags,
+        "flags": _red_flag_messages(red_flags, m4_risk_level) + _flags(m4, verdict),
         "explanation": xai["summary"]["text"] if xai else "",
         "extracted_entities": entities,
         "fields": dict(fields or {}),

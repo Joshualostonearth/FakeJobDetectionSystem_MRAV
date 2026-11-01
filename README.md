@@ -41,7 +41,7 @@ text ───────────────┘                │
       (NOT validated)
 ```
 
-Verdict mapping (`pipeline_bridge.py`): zone HIGH, or REVIEW with P(fraud) >= 0.5 -> **FAKE**, HIGH RISK (call starts automatically when the voice services are running); REVIEW with P(fraud) < 0.5 -> **NOT FAKE**, MEDIUM RISK (call recommended); LOW -> **NOT FAKE**, LOW RISK. The UI score is P(real) x 100 ("Calibrated confidence: Real").
+Verdict mapping (`pipeline_bridge.py`): zone HIGH, or REVIEW with P(fraud) >= 0.5 -> **FAKE**, HIGH RISK (call starts automatically when the voice services are running); REVIEW with P(fraud) < 0.5 -> **NOT FAKE**, MEDIUM RISK (call recommended); LOW -> **NOT FAKE**, LOW RISK. The UI score is P(real) x 100 ("Calibrated confidence: Real"). Rule-based red flags (`red_flags.py`: upfront fee, cheque/gift card/equipment purchase, WhatsApp/Telegram contact, bank or ID details, free-mail address for an institution) raise the risk level one step (LOW -> MEDIUM, MEDIUM -> HIGH) without changing the verdict or P(fraud), so an offer can show **NOT FAKE**, HIGH RISK: M4 found it borderline and a red flag means the company should be called (`results/red_flags_report.md`).
 
 ## Setup
 

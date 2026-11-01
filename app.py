@@ -586,7 +586,9 @@ if res:
                     {html.escape(res.get('final_verdict', ''))} &middot; {risk_lvl}
                 </div>
                 <p style="font-size: 13px; margin: 8px 0 0 0;">Calibrated P(fraud) = {res['p_fake']:.3f} &middot;
-                zone {html.escape(res.get('zone', ''))}{' &middot; DistilBERT consulted' if res['m4'].get('used_distilbert') else ''}</p>
+                zone {html.escape(res.get('zone', ''))}{' &middot; DistilBERT consulted' if res['m4'].get('used_distilbert') else ''}{
+                ' &middot; risk raised from ' + html.escape(res.get('m4_risk_level', '')) + ' by red flags'
+                if res.get('m4_risk_level') and res.get('m4_risk_level') != res.get('risk_level') else ''}</p>
             </div>
             """,
             unsafe_allow_html=True,
