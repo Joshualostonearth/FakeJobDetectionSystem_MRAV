@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from mravplus_infer import (TEXT_COLS, clean, combine_all, knn_mass, platt, source_masses)
 
 from .linear import LinearExplainer
+from .render import display_term
 
 SOURCE_LABELS = {
     "classifier": "Text + metadata classifier (TF-IDF SVM)",
@@ -165,7 +166,7 @@ def deletion_test(detector, text: str, fields: Optional[Dict[str, Any]], result:
 # ──────────────────────────────────────────────────────────
 
 def _phrases(items: List[Dict[str, Any]], n: int = 3) -> str:
-    terms = [f"\"{d['term']}\"" for d in items[:n]]
+    terms = [f"\"{display_term(d['term'])}\"" for d in items[:n]]
     return ", ".join(terms) if terms else "none"
 
 

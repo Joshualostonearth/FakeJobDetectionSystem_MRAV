@@ -59,6 +59,14 @@ ROLE_CONTEXT_RE = re.compile(
     rf"((?:[A-Za-z/&+-]+\s+){{0,3}}?{ROLE_WORDS}s?)\b",
     re.IGNORECASE)
 
+# Vocabulary that marks text as being about a job; used for the title-line fallback
+JOB_CONTEXT_RE = re.compile(
+    r"\b(?:hiring|hire|vacanc\w*|position|apply|applicants?|applications?|salary|wages?|stipend|"
+    r"responsibilit\w*|requirements?|qualifications?|jobs?|careers?|recruit\w*|candidates?|"
+    r"employment|internships?|full[- ]time|part[- ]time|work\s+from\s+home|benefits)\b",
+    re.IGNORECASE)
+MIN_JOB_CONTEXT = 2
+
 SIGNOFF_RE = re.compile(
     r"(?:regards|sincerely|best|thanks|thank\s+you|yours\s+(?:truly|faithfully))\s*,?\s*\n+\s*"
     r"([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){0,2})\s*$",
@@ -140,6 +148,12 @@ def extract_entities(text: str, fields: Optional[Dict[str, Any]] = None) -> Dict
             ent["company_name"] = cand
     if not ent["job_role"]:
         ent["job_role"] = _first(ROLE_CONTEXT_RE, text, 6) or _first(ROLE_PHRASE_RE, text, 5)
+    if not ent["job_role"] and len(JOB_CONTEXT_RE.findall(text)) >= MIN_JOB_CONTEXT:
+        # Posters usually lead with the job title (often all caps or an unlisted role word):
+        # take a short first line that is not a sentence or a "Label: value" line
+        first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+        if ":" not in first and not re.search(r"[.!?]$", first):
+            ent["job_role"] = _clean_value(first, 8)
     if not ent["recruiter_name"]:
         ent["recruiter_name"] = _first(SIGNOFF_RE, text, 4)
 

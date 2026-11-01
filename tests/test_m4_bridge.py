@@ -155,3 +155,12 @@ def test_bridge_imports_no_llm_or_faiss_modules():
     out = subprocess.run([sys.executable, "-c", code], cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=600)
     assert out.returncode == 0, out.stderr[-2000:]
     assert json.loads(out.stdout.strip().splitlines()[-1]) == []
+
+
+def test_title_line_fallback_for_posters():
+    # all-caps or unlisted role words: the poster's first line is taken as the role when the text is job-like
+    for title in ("ADMINISTRATIVE & OFFICE ASSISTANT", "Journeyman Electrician", "Appointment setter", "Mensajero"):
+        e = extract_entities(f"{title}\nLocation: US, TX, Houston\nJob description: we are hiring. Requirements: none.")
+        assert e["job_role"] == title, e
+    # an event poster has no job vocabulary and stays without a role
+    assert extract_entities("Security And Hacking Conference 2026\nKeynotes and workshops")["job_role"] is None

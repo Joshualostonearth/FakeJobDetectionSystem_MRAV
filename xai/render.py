@@ -7,6 +7,14 @@ import re
 from collections import defaultdict
 from typing import Callable, Dict, List, Optional
 
+_PLACEHOLDER = re.compile(r"#(email|phone|url)_[0-9a-f]{8,}#", re.IGNORECASE)
+
+
+def display_term(term: str) -> str:
+    """EMSCAD anonymised e-mails/phones/URLs as '#email_<sha256>#'; show them as '#email#'."""
+    return _PLACEHOLDER.sub(lambda m: f"#{m.group(1).lower()}#", str(term))
+
+
 FRAUD_RGB = "163, 58, 43"   # red: pushes towards FAKE
 LEGIT_RGB = "46, 125, 50"   # green: pushes towards REAL
 DEEP_BLUE = "#326080"
@@ -67,7 +75,7 @@ def bars_html(items: List[Dict], label_key: str = "term", value_key: str = "cont
         rows.append(
             "<div style='display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 13px;'>"
             f"<div style='width: 38%; text-align: right; color: {DEEP_BLUE}; overflow: hidden; "
-            f"text-overflow: ellipsis; white-space: nowrap;'>{html.escape(str(d[label_key]))}</div>"
+            f"text-overflow: ellipsis; white-space: nowrap;'>{html.escape(display_term(d[label_key]))}</div>"
             "<div style='flex: 1; background: #FFF1E7; border: 1px solid #B5D2E6; height: 14px;'>"
             f"<div style='width: {width:.1f}%; height: 100%; background: rgb({rgb});'></div></div>"
             f"<div style='width: 64px; color: {DEEP_BLUE};'>{v:+.3f}</div></div>"
