@@ -7,48 +7,48 @@
   "integrated_gradients": [
     {
       "row": 38,
-      "f_input": -5.013822555541992,
-      "f_baseline": -0.6739634275436401,
-      "attribution_sum": -4.325821876525879,
+      "f_input": -5.013825416564941,
+      "f_baseline": -0.6739656329154968,
+      "attribution_sum": -4.325822353363037,
       "residual": 0.014037132263183594,
-      "relative": 0.0032344672601522574,
+      "relative": 0.003234466771500066,
       "method": "captum.LayerIntegratedGradients"
     },
     {
       "row": 47,
-      "f_input": -4.126546859741211,
-      "f_baseline": -0.7147499918937683,
-      "attribution_sum": -3.4078574180603027,
-      "residual": 0.003939151763916016,
-      "relative": 0.0011545680814231151,
+      "f_input": -4.1265459060668945,
+      "f_baseline": -0.7147524952888489,
+      "attribution_sum": -3.4078593254089355,
+      "residual": 0.003933906555175781,
+      "relative": 0.0011530318754788466,
       "method": "captum.LayerIntegratedGradients"
     },
     {
       "row": 126,
       "f_input": 1.3786771297454834,
-      "f_baseline": -0.4404218792915344,
-      "attribution_sum": 1.8243777751922607,
-      "residual": 0.0052787065505981445,
-      "relative": 0.0029018247629042193,
+      "f_baseline": -0.4404219090938568,
+      "attribution_sum": 1.824381947517395,
+      "residual": 0.005282759666442871,
+      "relative": 0.002904052805070739,
       "method": "captum.LayerIntegratedGradients"
     }
   ],
   "deletion": {
     "k=5": {
       "n": 30,
-      "mean_delta_top": -0.1790059290871267,
-      "median_delta_top": -0.03222916525623448,
+      "mean_delta_top": -0.17900593128162373,
+      "median_delta_top": -0.032229167842206585,
       "share_lowered_top": 0.9666666666666667,
-      "mean_delta_random": 0.0019354186091385395,
-      "median_delta_random": -2.6137811786453025e-05
+      "mean_delta_random": 0.0019354173317807828,
+      "median_delta_random": -2.613777053200872e-05
     },
     "k=10": {
       "n": 30,
-      "mean_delta_top": -0.31452047374887826,
-      "median_delta_top": -0.07873149194643048,
+      "mean_delta_top": -0.31452046062654077,
+      "median_delta_top": -0.07873150616157898,
       "share_lowered_top": 1.0,
-      "mean_delta_random": 0.002033555190997697,
-      "median_delta_random": -7.133635394895865e-05
+      "mean_delta_random": 0.002033555740515399,
+      "median_delta_random": -7.13363443052284e-05
     }
   }
 }
